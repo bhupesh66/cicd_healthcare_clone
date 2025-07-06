@@ -1,4 +1,7 @@
-terraform/dev/*.tfstate
-terraform/dev/.terraform/
-terraform/dev/*.tfstate
-terraform/dev/*.tfstate.backup
+# Ignore terraform state files
+terraform/**/*.tfstate
+terraform/**/*.tfstate.backup
+
+# Ignore terraform hidden folder
+terraform/**/.terraform/
+terraform/**/.terraform.lock.hcl
