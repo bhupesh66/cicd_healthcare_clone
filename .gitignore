@@ -1,1 +1,4 @@
 terraform/dev/*.tfstate
+terraform/dev/.terraform/
+terraform/dev/*.tfstate
+terraform/dev/*.tfstate.backup
