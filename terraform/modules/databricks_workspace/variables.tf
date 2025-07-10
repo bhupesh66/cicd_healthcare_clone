@@ -91,4 +91,18 @@ variable "azure_subscription_id" {
   type        = string
 }
 
+variable "single_node" {
+  description = "Whether to create a single node cluster"
+  type        = bool
+  default     = false
+}
+
+
+variable "autotermination_minutes" {
+  description = "Number of workers (only used if not single node)"
+  type        = number
+  default     = 1
+}
+
+
 
