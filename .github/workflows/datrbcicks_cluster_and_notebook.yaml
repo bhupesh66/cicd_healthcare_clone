@@ -4,11 +4,11 @@ on:
   push:
     branches:
       - dev
+  workflow_dispatch:   # allows manual trigger for destroy
 
 jobs:
   terraform:
     runs-on: ubuntu-latest
-
     strategy:
       matrix:
         env: [dev]
@@ -17,9 +17,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name:  List terraform folder contents
+      - name: List terraform folder contents
         run: ls -la terraform/${{ matrix.env }}
-
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
@@ -44,6 +43,55 @@ jobs:
         working-directory: terraform/${{ matrix.env }}
         run: |
           terraform apply -auto-approve -var-file=terraform.tfvars \
+          -var "azure_client_id=${{ secrets.AZURE_CLIENT_ID }}" \
+          -var "azure_client_secret=${{ secrets.AZURE_CLIENT_SECRET }}" \
+          -var "azure_tenant_id=${{ secrets.AZURE_TENANT_ID }}" \
+          -var "azure_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+
+      - name: Install Databricks CLI & jq
+        run: |
+          pip install databricks-cli
+          sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Configure Databricks CLI
+        run: |
+          mkdir -p ~/.databricks
+          echo "[DEFAULT]" > ~/.databricks/config
+          echo "host = ${{ secrets.DATABRICKS_HOST }}" >> ~/.databricks/config
+          echo "token = ${{ secrets.DATABRICKS_TOKEN }}" >> ~/.databricks/config
+
+      - name: Upload Notebooks to Workspace
+        run: |
+          echo "Uploading notebooks to /Shared/project..."
+          for nb in notebooks/*; do
+            base=$(basename "$nb")
+            databricks workspace import --language PYTHON --format SOURCE "$nb" "/Shared/project/$base"
+          done
+
+  terraform_destroy:
+    if: github.event_name == 'workflow_dispatch'  # only runs when triggered manually
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        env: [dev]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.7
+
+      - name: Terraform Init
+        working-directory: terraform/${{ matrix.env }}
+        run: terraform init
+
+      - name: Terraform Destroy
+        working-directory: terraform/${{ matrix.env }}
+        run: |
+          terraform destroy -auto-approve -var-file=terraform.tfvars \
           -var "azure_client_id=${{ secrets.AZURE_CLIENT_ID }}" \
           -var "azure_client_secret=${{ secrets.AZURE_CLIENT_SECRET }}" \
           -var "azure_tenant_id=${{ secrets.AZURE_TENANT_ID }}" \
