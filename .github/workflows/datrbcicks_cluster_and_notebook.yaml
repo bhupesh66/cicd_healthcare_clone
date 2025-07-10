@@ -1,7 +1,10 @@
-name: Deploy Databricks Infrastructure
+name: Terraform CI/CD
 
 on:
   push:
+    branches:
+      - dev
+  pull_request:
     branches:
       - dev
 
@@ -10,40 +13,24 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+    - name: Checkout repo
+      uses: actions/checkout@v3
 
-      - name: Show root and terraform folders (debug)
-        run: |
-          pwd
-          ls -la
-          ls -la terraform
-          ls -la terraform/dev
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v2
+      with:
+        terraform_version: 1.5.6  # Or your preferred version
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: 1.5.7
+    - name: Terraform Init
+      working-directory: healthcare_final_dat_project/cicd/terraform/dev
+      run: terraform init
 
-      - name: Terraform Init
-        working-directory: terraform/dev
-        run: terraform init
+    - name: Terraform Plan
+      working-directory: healthcare_final_dat_project/cicd/terraform/dev
+      run: terraform plan -out=tfplan
 
-      - name: Terraform Plan
-        working-directory: terraform/dev
-        run: |
-          terraform plan -var-file=terraform.tfvars \
-          -var "azure_client_id=${{ secrets.AZURE_CLIENT_ID }}" \
-          -var "azure_client_secret=${{ secrets.AZURE_CLIENT_SECRET }}" \
-          -var "azure_tenant_id=${{ secrets.AZURE_TENANT_ID }}" \
-          -var "azure_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}"
-
-      - name: Terraform Apply
-        if: github.ref == 'refs/heads/dev'
-        working-directory: terraform/dev
-        run: |
-          terraform apply -auto-approve -var-file=terraform.tfvars \
-          -var "azure_client_id=${{ secrets.AZURE_CLIENT_ID }}" \
-          -var "azure_client_secret=${{ secrets.AZURE_CLIENT_SECRET }}" \
-          -var "azure_tenant_id=${{ secrets.AZURE_TENANT_ID }}" \
-          -var "azure_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+    # Optional: Only apply on push to main, not on PRs
+    - name: Terraform Apply
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      working-directory: healthcare_final_dat_project/cicd/terraform/dev
+      run: terraform apply -auto-approve tfplan
