@@ -9,17 +9,16 @@ jobs:
   terraform:
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        env: [dev]
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name:  List terraform folder contents
-        run: ls -la envs/${{ matrix.env }}
-
+      - name: Show root and terraform folders (debug)
+        run: |
+          pwd
+          ls -la
+          ls -la terraform
+          ls -la terraform/dev
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
@@ -27,11 +26,11 @@ jobs:
           terraform_version: 1.5.7
 
       - name: Terraform Init
-        working-directory: envssss${{ matrix.env }}
+        working-directory: terraform/dev
         run: terraform init
 
       - name: Terraform Plan
-        working-directory: envs/${{ matrix.env }}
+        working-directory: terraform/dev
         run: |
           terraform plan -var-file=terraform.tfvars \
           -var "azure_client_id=${{ secrets.AZURE_CLIENT_ID }}" \
@@ -40,8 +39,8 @@ jobs:
           -var "azure_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}"
 
       - name: Terraform Apply
-        if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
-        working-directory: envs/${{ matrix.env }}
+        if: github.ref == 'refs/heads/dev'
+        working-directory: terraform/dev
         run: |
           terraform apply -auto-approve -var-file=terraform.tfvars \
           -var "azure_client_id=${{ secrets.AZURE_CLIENT_ID }}" \
