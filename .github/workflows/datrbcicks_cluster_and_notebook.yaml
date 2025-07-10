@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - dev
-      
 
 jobs:
   terraform:
@@ -13,9 +12,14 @@ jobs:
     strategy:
       matrix:
         env: [dev]
+
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v3
+
+      - name:  List terraform folder contents
+        run: ls -la cicd/terraform/${{ matrix.env }}
+
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
@@ -28,7 +32,8 @@ jobs:
 
       - name: Terraform Plan
         working-directory: cicd/terraform/${{ matrix.env }}
-        run: terraform plan -var-file=terraform.tfvars \
+        run: |
+          terraform plan -var-file=terraform.tfvars \
           -var "azure_client_id=${{ secrets.AZURE_CLIENT_ID }}" \
           -var "azure_client_secret=${{ secrets.AZURE_CLIENT_SECRET }}" \
           -var "azure_tenant_id=${{ secrets.AZURE_TENANT_ID }}" \
@@ -37,7 +42,8 @@ jobs:
       - name: Terraform Apply
         if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
         working-directory: cicd/terraform/${{ matrix.env }}
-        run: terraform apply -auto-approve -var-file=terraform.tfvars \
+        run: |
+          terraform apply -auto-approve -var-file=terraform.tfvars \
           -var "azure_client_id=${{ secrets.AZURE_CLIENT_ID }}" \
           -var "azure_client_secret=${{ secrets.AZURE_CLIENT_SECRET }}" \
           -var "azure_tenant_id=${{ secrets.AZURE_TENANT_ID }}" \
