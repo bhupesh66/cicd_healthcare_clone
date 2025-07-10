@@ -1,18 +1,36 @@
-name: Test Workflow
+name: Terraform CI/CD
 
 on:
   push:
     branches:
       - dev
+  pull_request:
+    branches:
+      - dev
 
 jobs:
-  test:
+  terraform:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Print working directory
-        run: pwd
 
-      - name: List directory contents
-        run: ls -la
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v3
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v2
+      with:
+        terraform_version: 1.5.6  # Or your preferred version
+
+    - name: Terraform Init
+      working-directory: healthcare_final_dat_project/cicd/terraform/dev
+      run: terraform init
+
+    - name: Terraform Plan
+      working-directory: healthcare_final_dat_project/cicd/terraform/dev
+      run: terraform plan -out=tfplan
+
+    # Optional: Only apply on push to main, not on PRs
+    - name: Terraform Apply
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      working-directory: healthcare_final_dat_project/cicd/terraform/dev
+      run: terraform apply -auto-approve tfplan
