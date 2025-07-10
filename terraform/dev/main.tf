@@ -32,7 +32,8 @@ module "databricks_cluster" {
   virtual_network_id          = var.virtual_network_id
   workspace_name              = data.azurerm_databricks_workspace.workspace.name
   public_subnet_name          = var.public_subnet_name
-   
+  single_node =var.single_node
+  autotermination_minutes=var.autotermination_minutes
   
 
   cluster_name    = var.cluster_name

@@ -104,3 +104,14 @@ variable "private_subnet_name" {
   description = "Name of the private subnet."
   type        = string
 }
+variable "single_node" {
+  description = "Whether to use a single-node cluster"
+  type        = bool
+  default     = false
+}
+
+variable "autotermination_minutes" {
+  description = "Number of workers (only used if not single node)"
+  type        = number
+  default     = 1
+}
