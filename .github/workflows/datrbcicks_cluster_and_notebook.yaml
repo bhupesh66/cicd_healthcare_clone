@@ -1,65 +1,44 @@
-name: Terraform and Upload Notebooks
+name: Deploy Databricks Infrastructure
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - dev
+      
 
 jobs:
-  terraform_apply:
-    name: Terraform Apply - Create Databricks Cluster
+  terraform:
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        env: [dev]
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v3
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.7
 
       - name: Terraform Init
-        working-directory: envs/dev
+        working-directory: envs/${{ matrix.env }}
         run: terraform init
 
+      - name: Terraform Plan
+        working-directory: cicd/terraform/${{ matrix.env }}
+        run: terraform plan -var-file=terraform.tfvars \
+          -var "azure_client_id=${{ secrets.AZURE_CLIENT_ID }}" \
+          -var "azure_client_secret=${{ secrets.AZURE_CLIENT_SECRET }}" \
+          -var "azure_tenant_id=${{ secrets.AZURE_TENANT_ID }}" \
+          -var "azure_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+
       - name: Terraform Apply
-        working-directory: envs/dev
-        env:
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-        run: terraform apply -auto-approve -var-file=terraform.tfvars -var "azure_client_id=$AZURE_CLIENT_ID" -var "azure_client_secret=$AZURE_CLIENT_SECRET" -var "azure_tenant_id=$AZURE_TENANT_ID" -var "azure_subscription_id=$AZURE_SUBSCRIPTION_ID"
-
-      - name: Get Cluster ID output
-        working-directory: envs/dev
-        id: get_cluster_id
-        run: echo "cluster_id=$(terraform output -raw cluster_id)" >> $GITHUB_OUTPUT
-
-  deploy_notebooks:
-    name: Upload Notebooks to Databricks
-    needs: terraform_apply
-    runs-on: ubuntu-latest
-    env:
-      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Install dependencies
-        run: |
-          pip install databricks-cli
-          sudo apt-get update && sudo apt-get install -y jq
-
-      - name: Configure Databricks CLI
-        run: |
-          mkdir -p ~/.databricks
-          echo "[DEFAULT]" > ~/.databricks/config
-          echo "host = $DATABRICKS_HOST" >> ~/.databricks/config
-          echo "token = $DATABRICKS_TOKEN" >> ~/.databricks/config
-
-      - name: Upload notebooks
-        run: |
-          for nb in notebooks/*; do
-            base_name=$(basename "$nb")
-            databricks workspace import --language PYTHON --format SOURCE "$nb" "/Shared/project/$base_name"
-          done
+        if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
+        working-directory: cicd/terraform/${{ matrix.env }}
+        run: terraform apply -auto-approve -var-file=terraform.tfvars \
+          -var "azure_client_id=${{ secrets.AZURE_CLIENT_ID }}" \
+          -var "azure_client_secret=${{ secrets.AZURE_CLIENT_SECRET }}" \
+          -var "azure_tenant_id=${{ secrets.AZURE_TENANT_ID }}" \
+          -var "azure_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}"
