@@ -1,25 +1,27 @@
-terraform {
-  required_providers {
-    databricks = {
-      source  = "databricks/databricks"
-      version = "~> 1.34.0"
+resource "databricks_cluster" "this" {
+  cluster_name            = var.cluster_name
+  spark_version           = var.spark_version
+  node_type_id            = var.node_type_id
+  autotermination_minutes = var.autotermination_minutes
+
+  # Spark config for single-node cluster (dev only)
+  spark_conf = var.env == "dev" ? {
+    "spark.databricks.cluster.profile" = "singleNode"
+    "spark.master"                     = "local[*]"
+  } : {}
+
+  # Autoscaling workers for prod only
+  dynamic "autoscale" {
+    for_each = var.env == "prod" ? [1] : []
+    content {
+      min_workers = var.min_workers
+      max_workers = var.max_workers
     }
   }
-}
 
-resource "databricks_cluster" "this" {
-  cluster_name  = var.cluster_name
-  spark_version = var.spark_version
-
-  # Use instance_pool_id only for prod, else null
-  instance_pool_id = var.env == "prod" ? var.instance_pool_id : null
-
-  # Use node_type_id only for dev, else null
-  node_type_id = var.env == "dev" ? var.node_type_id : null
-
-  autoscale {
-    min_workers = var.min_workers
-    max_workers = var.max_workers
+  custom_tags = {
+    "Environment"   = var.env
+    "ResourceClass" = var.env == "dev" ? "SingleNode" : "Standard"
   }
 
   lifecycle {

@@ -1,0 +1,68 @@
+name: Terraform and Upload Notebooks
+
+on:
+  workflow_dispatch:  # manual trigger
+  push:
+    branches:
+      - dev            # trigger on push to dev
+  pull_request:
+    types: [closed]    # trigger when PR is merged
+    branches:
+      - dev            # only when merged into dev
+
+jobs:
+  terraform_apply:
+    name: Terraform Apply - Create Databricks Cluster
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve -var-file=terraform.tfvars \
+          -var "azure_client_id=${{ secrets.AZURE_CLIENT_ID }}" \
+          -var "azure_client_secret=${{ secrets.AZURE_CLIENT_SECRET }}" \
+          -var "azure_tenant_id=${{ secrets.AZURE_TENANT_ID }}" \
+          -var "azure_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+
+      - name: Get Cluster ID output
+        id: get_cluster_id
+        run: echo "cluster_id=$(terraform output -raw cluster_id)" >> $GITHUB_OUTPUT
+
+  deploy_notebooks:
+    name: Upload Notebooks to Databricks
+    needs: terraform_apply
+    runs-on: ubuntu-latest
+    env:
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          pip install databricks-cli
+          sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Configure Databricks CLI
+        run: |
+          mkdir -p ~/.databricks
+          echo "[DEFAULT]" > ~/.databricks/config
+          echo "host = $DATABRICKS_HOST" >> ~/.databricks/config
+          echo "token = $DATABRICKS_TOKEN" >> ~/.databricks/config
+
+      - name: Upload notebooks
+        run: |
+          for nb in notebooks/*; do
+            base_name=$(basename "$nb")
+            databricks workspace import --language PYTHON --format SOURCE "$nb" "/Shared/project/$base_name"
+          done
