@@ -1,14 +1,7 @@
 name: Terraform and Upload Notebooks
 
 on:
-  workflow_dispatch:  # manual trigger
-  push:
-    branches:
-      - dev            # trigger on push to dev
-  pull_request:
-    types: [closed]    # trigger when PR is merged
-    branches:
-      - dev            # only when merged into dev
+  workflow_dispatch:  # you can add 'push' or other triggers if needed
 
 jobs:
   terraform_apply:
@@ -26,11 +19,12 @@ jobs:
         run: terraform init
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve -var-file=terraform.tfvars \
-          -var "azure_client_id=${{ secrets.AZURE_CLIENT_ID }}" \
-          -var "azure_client_secret=${{ secrets.AZURE_CLIENT_SECRET }}" \
-          -var "azure_tenant_id=${{ secrets.AZURE_TENANT_ID }}" \
-          -var "azure_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+        run: |
+          terraform apply -auto-approve -var-file=terraform.tfvars \
+            -var "azure_client_id=${{ secrets.AZURE_CLIENT_ID }}" \
+            -var "azure_client_secret=${{ secrets.AZURE_CLIENT_SECRET }}" \
+            -var "azure_tenant_id=${{ secrets.AZURE_TENANT_ID }}" \
+            -var "azure_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}"
 
       - name: Get Cluster ID output
         id: get_cluster_id
