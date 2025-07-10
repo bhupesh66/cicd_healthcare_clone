@@ -27,7 +27,7 @@ jobs:
           terraform_version: 1.5.7
 
       - name: Terraform Init
-        working-directory: envs${{ matrix.env }}
+        working-directory: envssss${{ matrix.env }}
         run: terraform init
 
       - name: Terraform Plan
