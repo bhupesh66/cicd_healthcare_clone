@@ -59,6 +59,11 @@ jobs:
           ${{ secrets.DATABRICKS_HOST }}
           ${{ secrets.DATABRICKS_TOKEN }}
           EOF
+
+      - name: Create /Shared/project folder in Databricks Workspace
+        run: |
+         databricks workspace mkdirs /Shared/project   
+           
       - name: Upload Notebooks to Workspace
         run: |
           echo "Uploading notebooks to /Shared/project..."
