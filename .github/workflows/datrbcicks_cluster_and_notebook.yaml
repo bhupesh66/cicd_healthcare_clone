@@ -55,18 +55,17 @@ jobs:
 
       - name: Configure Databricks CLI
         run: |
-          mkdir -p ~/.databricks
-          echo "[DEFAULT]" > ~/.databricks/config
-          echo "host = ${{ secrets.DATABRICKS_HOST }}" >> ~/.databricks/config
-          echo "token = ${{ secrets.DATABRICKS_TOKEN }}" >> ~/.databricks/config
-
+          databricks configure --token <<EOF
+          ${{ secrets.DATABRICKS_HOST }}
+          ${{ secrets.DATABRICKS_TOKEN }}
+          EOF
       - name: Upload Notebooks to Workspace
         run: |
           echo "Uploading notebooks to /Shared/project..."
           for nb in notebooks/*; do
             base=$(basename "$nb")
             databricks workspace import --language PYTHON --format SOURCE "$nb" "/Shared/project/$base"
-          done
+            done
 
   terraform_destroy:
     if: github.event_name == 'workflow_dispatch'  # only runs when triggered manually
