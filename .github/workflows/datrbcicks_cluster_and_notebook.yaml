@@ -1,7 +1,14 @@
 name: Terraform and Upload Notebooks
 
 on:
-  workflow_dispatch:
+  workflow_dispatch:  # manual trigger
+  push:
+    branches:
+      - dev            # trigger on push to dev
+  pull_request:
+    types: [closed]    # trigger when PR is merged
+    branches:
+      - dev            # only when merged into dev
 
 jobs:
   terraform_apply:
