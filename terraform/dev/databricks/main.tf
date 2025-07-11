@@ -23,7 +23,7 @@ data "databricks_spark_version" "latest_lts" {
 
 # Now call your cluster module, pass these values (do NOT pass empty strings)
 module "databricks_cluster" {
-  source = "../modules/databricks_workspace"
+  source = "../../modules/databricks_workspace"
   
   resource_group_name         = data.azurerm_resource_group.rg.name
   private_subnet_name         = var.private_subnet_name
@@ -34,6 +34,7 @@ module "databricks_cluster" {
   public_subnet_name          = var.public_subnet_name
   single_node =var.single_node
   autotermination_minutes=var.autotermination_minutes
+
   
 
   cluster_name    = var.cluster_name

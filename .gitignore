@@ -5,4 +5,4 @@ terraform/**/*.tfstate.backup
 # Ignore terraform hidden folder
 terraform/**/.terraform/
 terraform/**/.terraform.lock.hcl
-terraform/dev/secrets.tfvars
+terraform/dev/databricks/secrets.tfvars

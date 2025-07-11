@@ -18,7 +18,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: List terraform folder contents
-        run: ls -la terraform/${{ matrix.env }}
+        run: ls -la terraform/${{ matrix.env }}/databricks
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
@@ -26,11 +26,11 @@ jobs:
           terraform_version: 1.5.7
 
       - name: Terraform Init
-        working-directory: terraform/${{ matrix.env }}
+        working-directory: terraform/${{ matrix.env }}/databricks
         run: terraform init
 
       - name: Terraform Plan
-        working-directory: terraform/${{ matrix.env }}
+        working-directory: terraform/${{ matrix.env }}/databricks
         run: |
           terraform plan -var-file=terraform.tfvars \
           -var "azure_client_id=${{ secrets.AZURE_CLIENT_ID }}" \
@@ -40,7 +40,7 @@ jobs:
 
       - name: Terraform Apply
         if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
-        working-directory: terraform/${{ matrix.env }}
+        working-directory: terraform/${{ matrix.env }}/databricks
         run: |
           terraform apply -auto-approve -var-file=terraform.tfvars \
           -var "azure_client_id=${{ secrets.AZURE_CLIENT_ID }}" \
@@ -89,11 +89,11 @@ jobs:
           terraform_version: 1.5.7
 
       - name: Terraform Init
-        working-directory: terraform/${{ matrix.env }}
+        working-directory: terraform/${{ matrix.env }}/databricks
         run: terraform init
 
       - name: Terraform Destroy
-        working-directory: terraform/${{ matrix.env }}
+        working-directory: terraform/${{ matrix.env }}/databricks
         run: |
           terraform destroy -auto-approve -var-file=terraform.tfvars \
           -var "azure_client_id=${{ secrets.AZURE_CLIENT_ID }}" \
