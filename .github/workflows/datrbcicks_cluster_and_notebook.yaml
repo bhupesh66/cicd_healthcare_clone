@@ -73,7 +73,7 @@ jobs:
            done
 
   terraform_destroy:
-    if: github.event_name == 'workflow_dispatch'  # only runs when triggered manually
+    if: github.event_name == 'workflow_dispatch'  # only runs when triggered manuallys
     runs-on: ubuntu-latest
     strategy:
       matrix:
