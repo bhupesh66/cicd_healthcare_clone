@@ -68,9 +68,9 @@ jobs:
         run: |
           echo "Uploading notebooks to /Shared/project..."
           for nb in notebooks/*; do
-            base=$(basename "$nb")
-            databricks workspace import --language PYTHON --format SOURCE "$nb" "/Shared/project/$base"
-            done
+           base=$(basename "$nb")
+           databricks workspace import --language PYTHON --format SOURCE --overwrite "$nb" "/Shared/project/$base"
+           done
 
   terraform_destroy:
     if: github.event_name == 'workflow_dispatch'  # only runs when triggered manually
