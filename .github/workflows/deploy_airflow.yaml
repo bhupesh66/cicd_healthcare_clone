@@ -20,6 +20,12 @@ jobs:
       matrix:
         env: [dev]
 
+    env:
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -48,12 +54,7 @@ jobs:
 
       - name: Terraform Plan
         working-directory: terraform/${{ matrix.env }}/acr
-        run: |
-          terraform plan -out=tfplan -var-file=terraform.tfvars \
-            -var "azure_client_id=${{ secrets.AZURE_CLIENT_ID }}" \
-            -var "azure_client_secret=${{ secrets.AZURE_CLIENT_SECRET }}" \
-            -var "azure_tenant_id=${{ secrets.AZURE_TENANT_ID }}" \
-            -var "azure_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+        run: terraform plan -out=tfplan -var-file=terraform.tfvars
 
       - name: Terraform Apply
         if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
@@ -94,6 +95,12 @@ jobs:
       matrix:
         env: [dev]
 
+    env:
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -114,10 +121,4 @@ jobs:
 
       - name: Terraform Apply with Image Tag
         working-directory: terraform/${{ matrix.env }}/acr
-        run: |
-          terraform apply -auto-approve -var-file=terraform.tfvars \
-          -var "image_tag=${{ env.IMAGE_TAG }}" \
-          -var "azure_client_id=${{ secrets.AZURE_CLIENT_ID }}" \
-          -var "azure_client_secret=${{ secrets.AZURE_CLIENT_SECRET }}" \
-          -var "azure_tenant_id=${{ secrets.AZURE_TENANT_ID }}" \
-          -var "azure_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+        run: terraform apply -auto-approve -var-file=terraform.tfvars -var "image_tag=${{ env.IMAGE_TAG }}"
