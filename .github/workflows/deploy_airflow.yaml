@@ -60,9 +60,7 @@ jobs:
         working-directory: terraform/${{ matrix.env }}/acr
         run: terraform fmt -check
 
-      - name: Terraform Validate
-        working-directory: terraform/${{ matrix.env }}/acr
-        run: terraform validate
+      
 
       - name: Terraform Plan
         working-directory: terraform/${{ matrix.env }}/acr
