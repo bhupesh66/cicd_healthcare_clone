@@ -60,6 +60,9 @@ variable "azure_subscription_id" {
 
 }
 
+variable "azure_credentials" {
+  type = string
+}
 
 
 
