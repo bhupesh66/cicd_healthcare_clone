@@ -24,12 +24,6 @@ jobs:
       group: terraform-${{ matrix.env }}
       cancel-in-progress: true
 
-    env:
-      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -37,7 +31,7 @@ jobs:
       - name: Azure Login
         uses: azure/login@v1
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          creds: ${{ secrets.AZURE_CREDENTIALS_JSON }}
 
       - name: Break Terraform state blob lease if any
         run: |
@@ -71,22 +65,14 @@ jobs:
             -input=false \
             -lock-timeout=120s \
             -var-file=terraform.tfvars \
-            -var="azure_client_id=${{ secrets.AZURE_CLIENT_ID }}" \
-            -var="azure_client_secret=${{ secrets.AZURE_CLIENT_SECRET }}" \
-            -var="azure_tenant_id=${{ secrets.AZURE_TENANT_ID }}" \
-            -var="azure_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
+            -var="azure_credentials=${{ secrets.AZURE_CREDENTIALS_JSON }}" \
             -var="image_tag=${{ env.IMAGE_TAG }}" \
             -out=tfplan
 
       - name: Terraform Apply
         if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
         working-directory: terraform/${{ matrix.env }}/acr
-        run: |
-          terraform apply \
-            -input=false \
-            -lock-timeout=120s \
-            tfplan
-
+        run: terraform apply -input=false -lock-timeout=120s tfplan
 
   docker-build-push:
     name: Build and Push Docker Image
@@ -100,7 +86,7 @@ jobs:
       - name: Azure Login
         uses: azure/login@v1
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          creds: ${{ secrets.AZURE_CREDENTIALS_JSON }}
 
       - name: ACR Login
         run: az acr login --name ${{ env.ACR_NAME }}
@@ -126,12 +112,6 @@ jobs:
       group: terraform-${{ matrix.env }}
       cancel-in-progress: true
 
-    env:
-      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -139,7 +119,7 @@ jobs:
       - name: Azure Login
         uses: azure/login@v1
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          creds: ${{ secrets.AZURE_CREDENTIALS_JSON }}
 
       - name: Break Terraform state blob lease if any
         run: |
@@ -162,6 +142,6 @@ jobs:
         working-directory: terraform/${{ matrix.env }}/acr
         run: |
           terraform apply -lock-timeout=120s -auto-approve \
-          -var-file=terraform.tfvars \
-          -var="image_tag=${{ env.IMAGE_TAG }}"
-
+            -var-file=terraform.tfvars \
+            -var="azure_credentials=${{ secrets.AZURE_CREDENTIALS_JSON }}" \
+            -var="image_tag=${{ env.IMAGE_TAG }}"

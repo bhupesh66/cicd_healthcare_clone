@@ -2,6 +2,16 @@ data "azurerm_resource_group" "rg" {
   name = var.resource_group_name
 }
 
+data "azurerm_container_registry" "acr" {
+  name                = var.acr_name
+  resource_group_name = data.azurerm_resource_group.rg.name
+}
+
+data "azurerm_container_registry_credentials" "acr_credentials" {
+  name                = data.azurerm_container_registry.acr.name
+  resource_group_name = data.azurerm_resource_group.rg.name
+}
+
 module "acr" {
   source              = "../../modules/acr"
   acr_name            = var.acr_name
@@ -20,8 +30,10 @@ module "container_instance" {
   source                = "../../modules/container_instance"
   prefix                = var.prefix
   location              = var.location
-  resource_group_name   = data.azurerm_resource_group.rg.name
-  acr_login_server      = module.acr.acr_login_server
+  resource_group_name   = var.resource_group_name
+  acr_login_server      = data.azurerm_container_registry.acr.login_server
+  acr_username          = data.azurerm_container_registry_credentials.acr_credentials.username
+  acr_password          = data.azurerm_container_registry_credentials.acr_credentials.passwords[0].value
   docker_image          = var.docker_image
   image_tag             = var.image_tag
   environment_variables = var.environment_variables

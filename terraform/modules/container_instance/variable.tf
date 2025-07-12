@@ -33,3 +33,14 @@ variable "tags" {
   type = map(string)
   default = {}
 }
+
+variable "acr_username" {
+  description = "ACR Username"
+  type        = string
+}
+
+variable "acr_password" {
+  description = "ACR Password"
+  type        = string
+}
+
