@@ -3,7 +3,7 @@ name: Deploy Databricks Infrastructure
 on:
   push:
     branches:
-      - dev
+      - main
   workflow_dispatch:   # allows manual trigger for destroy
 
 jobs:
