@@ -20,6 +20,10 @@ jobs:
       matrix:
         env: [dev]
 
+    concurrency:
+      group: terraform-${{ matrix.env }}
+      cancel-in-progress: true
+
     env:
       ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
@@ -54,7 +58,8 @@ jobs:
 
       - name: Terraform Plan
         working-directory: terraform/${{ matrix.env }}/acr
-        run: terraform plan -out=tfplan -var-file=terraform.tfvars
+        run: |
+          terraform plan -lock-timeout=60s -out=tfplan -var-file=terraform.tfvars
 
       - name: Terraform Apply
         if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
@@ -95,6 +100,10 @@ jobs:
       matrix:
         env: [dev]
 
+    concurrency:
+      group: terraform-${{ matrix.env }}
+      cancel-in-progress: true
+
     env:
       ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
@@ -121,4 +130,7 @@ jobs:
 
       - name: Terraform Apply with Image Tag
         working-directory: terraform/${{ matrix.env }}/acr
-        run: terraform apply -auto-approve -var-file=terraform.tfvars -var "image_tag=${{ env.IMAGE_TAG }}"
+        run: |
+          terraform apply -lock-timeout=60s -auto-approve \
+            -var-file=terraform.tfvars \
+            -var "image_tag=${{ env.IMAGE_TAG }}"
