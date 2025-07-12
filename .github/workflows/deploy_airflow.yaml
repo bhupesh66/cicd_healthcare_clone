@@ -59,7 +59,7 @@ jobs:
       - name: Terraform Plan
         working-directory: terraform/${{ matrix.env }}/acr
         run: |
-          terraform plan -lock-timeout=60s -out=tfplan -var-file=terraform.tfvars
+          terraform plan -lock-timeout=120s -out=tfplan -var-file=terraform.tfvars
 
       - name: Terraform Apply
         if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
@@ -131,6 +131,6 @@ jobs:
       - name: Terraform Apply with Image Tag
         working-directory: terraform/${{ matrix.env }}/acr
         run: |
-          terraform apply -lock-timeout=60s -auto-approve \
+          terraform apply -lock-timeout=120s -auto-approve \
             -var-file=terraform.tfvars \
             -var "image_tag=${{ env.IMAGE_TAG }}"
