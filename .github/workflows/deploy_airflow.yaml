@@ -24,7 +24,6 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      # Keep azure/login for az CLI commands only
       - name: Azure Login for CLI commands
         uses: azure/login@v1
         with:
@@ -69,6 +68,9 @@ jobs:
           -lock-timeout=120s \
           -var-file=terraform.tfvars \
           -var="image_tag=${{ env.IMAGE_TAG }}" \
+          -var="acr_login_server=${{ secrets.ACR_LOGIN_SERVER }}" \
+          -var="acr_sp_username=${{ secrets.ACR_SP_USERNAME }}" \
+          -var="acr_sp_password=${{ secrets.ACR_SP_PASSWORD }}" \
           -out=tfplan
 
       - name: Terraform Apply
@@ -147,4 +149,7 @@ jobs:
         working-directory: terraform/dev/acr
         run: terraform apply -lock-timeout=120s -auto-approve \
           -var-file=terraform.tfvars \
-          -var="image_tag=${{ env.IMAGE_TAG }}"
+          -var="image_tag=${{ env.IMAGE_TAG }}" \
+          -var="acr_login_server=${{ secrets.ACR_LOGIN_SERVER }}" \
+          -var="acr_sp_username=${{ secrets.ACR_SP_USERNAME }}" \
+          -var="acr_sp_password=${{ secrets.ACR_SP_PASSWORD }}"
