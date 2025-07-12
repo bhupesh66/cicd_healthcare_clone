@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch:   # allows manual trigger for destroy
+  workflow_dispatch:  # allows manual trigger for destroy
 
 jobs:
   terraform:
@@ -12,6 +12,13 @@ jobs:
     strategy:
       matrix:
         env: [dev]
+
+    # Set Azure SP credentials as environment variables for the azurerm provider
+    env:
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
     steps:
       - name: Checkout repository
@@ -31,22 +38,12 @@ jobs:
 
       - name: Terraform Plan
         working-directory: terraform/${{ matrix.env }}/databricks
-        run: |
-          terraform plan -var-file=terraform.tfvars \
-          -var "azure_client_id=${{ secrets.AZURE_CLIENT_ID }}" \
-          -var "azure_client_secret=${{ secrets.AZURE_CLIENT_SECRET }}" \
-          -var "azure_tenant_id=${{ secrets.AZURE_TENANT_ID }}" \
-          -var "azure_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+        run: terraform plan -var-file=terraform.tfvars
 
       - name: Terraform Apply
         if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
         working-directory: terraform/${{ matrix.env }}/databricks
-        run: |
-          terraform apply -auto-approve -var-file=terraform.tfvars \
-          -var "azure_client_id=${{ secrets.AZURE_CLIENT_ID }}" \
-          -var "azure_client_secret=${{ secrets.AZURE_CLIENT_SECRET }}" \
-          -var "azure_tenant_id=${{ secrets.AZURE_TENANT_ID }}" \
-          -var "azure_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+        run: terraform apply -auto-approve -var-file=terraform.tfvars
 
       - name: Install Databricks CLI & jq
         run: |
@@ -61,23 +58,28 @@ jobs:
           EOF
 
       - name: Create /Shared/project folder in Databricks Workspace
-        run: |
-         databricks workspace mkdirs /Shared/project   
-           
+        run: databricks workspace mkdirs /Shared/project
+
       - name: Upload Notebooks to Workspace
         run: |
           echo "Uploading notebooks to /Shared/project..."
           for nb in notebooks/*; do
-           base=$(basename "$nb")
-           databricks workspace import --language PYTHON --format SOURCE --overwrite "$nb" "/Shared/project/$base"
-           done
+            base=$(basename "$nb")
+            databricks workspace import --language PYTHON --format SOURCE --overwrite "$nb" "/Shared/project/$base"
+          done
 
   terraform_destroy:
-    if: github.event_name == 'workflow_dispatch'  # only runs when triggered manuallys
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     strategy:
       matrix:
         env: [dev]
+
+    env:
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
     steps:
       - name: Checkout repository
@@ -94,9 +96,4 @@ jobs:
 
       - name: Terraform Destroy
         working-directory: terraform/${{ matrix.env }}/databricks
-        run: |
-          terraform destroy -auto-approve -var-file=terraform.tfvars \
-          -var "azure_client_id=${{ secrets.AZURE_CLIENT_ID }}" \
-          -var "azure_client_secret=${{ secrets.AZURE_CLIENT_SECRET }}" \
-          -var "azure_tenant_id=${{ secrets.AZURE_TENANT_ID }}" \
-          -var "azure_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+        run: terraform destroy -auto-approve -var-file=terraform.tfvars
