@@ -28,9 +28,9 @@ variable "image_tag" {
 }
 
 variable "environment_variables" {
-  type = map(string)
+  type        = map(string)
   description = "Map of environment variables to pass to the container"
-  default = {}
+  default     = {}
 }
 
 
@@ -42,20 +42,20 @@ variable "tags" {
 }
 
 variable "azure_client_id" {
-    type=string
-  
+  type = string
+
 }
 
 variable "azure_client_secret" {
-    type=string
-  
+  type = string
+
 }
 
 variable "azure_tenant_id" {
-    type=string
-  
+  type = string
+
 }
 variable "azure_subscription_id" {
-    type=string
-  
+  type = string
+
 }
