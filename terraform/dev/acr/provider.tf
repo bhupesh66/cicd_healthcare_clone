@@ -20,10 +20,10 @@ provider "azurerm" {
       prevent_deletion_if_contains_resources = false
     }
   }
-  subscription_id = var.azure_subscription_id
-  client_id       = var.azure_client_id
-  client_secret   = var.azure_client_secret
-  tenant_id       = var.azure_tenant_id
+  subscription_id = jsondecode(var.azure_credentials).subscriptionId
+  client_id       = jsondecode(var.azure_credentials).clientId
+  client_secret   = jsondecode(var.azure_credentials).clientSecret
+  tenant_id       = jsondecode(var.azure_credentials).tenantId
 
 
 }
