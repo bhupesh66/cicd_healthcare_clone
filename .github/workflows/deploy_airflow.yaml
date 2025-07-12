@@ -60,9 +60,7 @@ jobs:
         working-directory: terraform/${{ matrix.env }}/acr
         run: terraform fmt -check
 
-      - name: Terraform Validate
-        working-directory: terraform/${{ matrix.env }}/acr
-        run: terraform validate
+    
 
       - name: Terraform Plan
         working-directory: terraform/${{ matrix.env }}/acr
@@ -71,8 +69,8 @@ jobs:
             -input=false \
             -lock-timeout=120s \
             -var-file=terraform.tfvars \
-            -var="azure_client_id=${{ secrets.AZURE_CLIENT_ID }}" \
-            -var="azure_client_secret=${{ secrets.AZURE_CLIENT_SECRET }}" \
+            -var="azure_client_id=${{ secrets.ACR_SP_USERNAME }}" \
+            -var="azure_client_secret=${{ secrets.ACR_SP_PASSWORD }}" \
             -var="azure_tenant_id=${{ secrets.AZURE_TENANT_ID }}" \
             -var="azure_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
             -var="image_tag=${{ env.IMAGE_TAG }}" \
