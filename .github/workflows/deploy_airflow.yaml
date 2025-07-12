@@ -39,6 +39,14 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      - name: Break Terraform state blob lease if any
+        run: |
+          az storage blob lease break \
+            --account-name tfstate147025af \
+            --container-name tfstate \
+            --blob-name terraform.tfstate \
+            --auth-mode login || echo "No lease to break"
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -118,6 +126,14 @@ jobs:
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Break Terraform state blob lease if any
+        run: |
+          az storage blob lease break \
+            --account-name tfstate147025af \
+            --container-name tfstate \
+            --blob-name terraform.tfstate \
+            --auth-mode login || echo "No lease to break"
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
