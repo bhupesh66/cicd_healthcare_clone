@@ -16,12 +16,8 @@ jobs:
   terraform-deploy:
     name: Terraform Deploy Infrastructure
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        env: [dev]
-
     concurrency:
-      group: terraform-${{ matrix.env }}
+      group: terraform-dev
       cancel-in-progress: true
 
     steps:
@@ -47,31 +43,30 @@ jobs:
           terraform_version: 1.5.7
 
       - name: Terraform Init
-        working-directory: terraform/${{ matrix.env }}/acr
+        working-directory: terraform/dev/acr
         run: terraform init
 
       - name: Terraform Format Check
-        working-directory: terraform/${{ matrix.env }}/acr
+        working-directory: terraform/dev/acr
         run: terraform fmt -check
 
       - name: Terraform Validate
-        working-directory: terraform/${{ matrix.env }}/acr
+        working-directory: terraform/dev/acr
         run: terraform validate
 
       - name: Terraform Plan
-        working-directory: terraform/${{ matrix.env }}/acr
-        run: |
-          terraform plan \
-            -input=false \
-            -lock-timeout=120s \
-            -var-file=terraform.tfvars \
-            -var="azure_credentials=${{ secrets.AZURE_CREDENTIALS_JSON }}" \
-            -var="image_tag=${{ env.IMAGE_TAG }}" \
-            -out=tfplan
+        working-directory: terraform/dev/acr
+        run: terraform plan \
+          -input=false \
+          -lock-timeout=120s \
+          -var-file=terraform.tfvars \
+          -var="azure_credentials=${{ secrets.AZURE_CREDENTIALS_JSON }}" \
+          -var="image_tag=${{ env.IMAGE_TAG }}" \
+          -out=tfplan
 
       - name: Terraform Apply
-        if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
-        working-directory: terraform/${{ matrix.env }}/acr
+        if: github.ref == 'refs/heads/dev'
+        working-directory: terraform/dev/acr
         run: terraform apply -input=false -lock-timeout=120s tfplan
 
   docker-build-push:
@@ -102,14 +97,10 @@ jobs:
   terraform-redeploy:
     name: Terraform Re-Apply with New Image
     needs: docker-build-push
-    runs-on: ubuntu-latest
     if: github.event.head_commit.message != 'skip-infra'
-    strategy:
-      matrix:
-        env: [dev]
-
+    runs-on: ubuntu-latest
     concurrency:
-      group: terraform-${{ matrix.env }}
+      group: terraform-dev
       cancel-in-progress: true
 
     steps:
@@ -135,13 +126,12 @@ jobs:
           terraform_version: 1.5.7
 
       - name: Terraform Init
-        working-directory: terraform/${{ matrix.env }}/acr
+        working-directory: terraform/dev/acr
         run: terraform init
 
       - name: Terraform Apply with Image Tag
-        working-directory: terraform/${{ matrix.env }}/acr
-        run: |
-          terraform apply -lock-timeout=120s -auto-approve \
-            -var-file=terraform.tfvars \
-            -var="azure_credentials=${{ secrets.AZURE_CREDENTIALS_JSON }}" \
-            -var="image_tag=${{ env.IMAGE_TAG }}"
+        working-directory: terraform/dev/acr
+        run: terraform apply -lock-timeout=120s -auto-approve \
+          -var-file=terraform.tfvars \
+          -var="azure_credentials=${{ secrets.AZURE_CREDENTIALS_JSON }}" \
+          -var="image_tag=${{ env.IMAGE_TAG }}"
