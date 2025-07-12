@@ -24,10 +24,18 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Azure Login
+      # Keep azure/login for az CLI commands only
+      - name: Azure Login for CLI commands
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS_JSON }}
+
+      - name: Set Azure SP env variables for Terraform
+        run: |
+          echo "ARM_CLIENT_ID=$(jq -r .clientId <<< '${{ secrets.AZURE_CREDENTIALS_JSON }}')" >> $GITHUB_ENV
+          echo "ARM_CLIENT_SECRET=$(jq -r .clientSecret <<< '${{ secrets.AZURE_CREDENTIALS_JSON }}')" >> $GITHUB_ENV
+          echo "ARM_TENANT_ID=$(jq -r .tenantId <<< '${{ secrets.AZURE_CREDENTIALS_JSON }}')" >> $GITHUB_ENV
+          echo "ARM_SUBSCRIPTION_ID=$(jq -r .subscriptionId <<< '${{ secrets.AZURE_CREDENTIALS_JSON }}')" >> $GITHUB_ENV
 
       - name: Break Terraform state blob lease if any
         run: |
@@ -60,7 +68,6 @@ jobs:
           -input=false \
           -lock-timeout=120s \
           -var-file=terraform.tfvars \
-          -var="azure_credentials=${{ secrets.AZURE_CREDENTIALS_JSON }}" \
           -var="image_tag=${{ env.IMAGE_TAG }}" \
           -out=tfplan
 
@@ -107,10 +114,17 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Azure Login
+      - name: Azure Login for CLI commands
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS_JSON }}
+
+      - name: Set Azure SP env variables for Terraform
+        run: |
+          echo "ARM_CLIENT_ID=$(jq -r .clientId <<< '${{ secrets.AZURE_CREDENTIALS_JSON }}')" >> $GITHUB_ENV
+          echo "ARM_CLIENT_SECRET=$(jq -r .clientSecret <<< '${{ secrets.AZURE_CREDENTIALS_JSON }}')" >> $GITHUB_ENV
+          echo "ARM_TENANT_ID=$(jq -r .tenantId <<< '${{ secrets.AZURE_CREDENTIALS_JSON }}')" >> $GITHUB_ENV
+          echo "ARM_SUBSCRIPTION_ID=$(jq -r .subscriptionId <<< '${{ secrets.AZURE_CREDENTIALS_JSON }}')" >> $GITHUB_ENV
 
       - name: Break Terraform state blob lease if any
         run: |
@@ -133,5 +147,4 @@ jobs:
         working-directory: terraform/dev/acr
         run: terraform apply -lock-timeout=120s -auto-approve \
           -var-file=terraform.tfvars \
-          -var="azure_credentials=${{ secrets.AZURE_CREDENTIALS_JSON }}" \
           -var="image_tag=${{ env.IMAGE_TAG }}"
