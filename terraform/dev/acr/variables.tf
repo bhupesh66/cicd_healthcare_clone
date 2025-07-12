@@ -28,13 +28,17 @@ variable "image_tag" {
 }
 
 variable "environment_variables" {
-  description = "environment_variables"
-  type        = string
+  type = map(string)
+  description = "Map of environment variables to pass to the container"
+  default = {}
 }
 
+
 variable "tags" {
-  description = "tags"
-  type        = string
+  default = {
+    environment = "dev"
+    project     = "airflow"
+  }
 }
 
 variable "azure_client_id" {
