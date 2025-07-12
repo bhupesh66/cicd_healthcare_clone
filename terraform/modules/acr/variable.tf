@@ -1,11 +1,20 @@
 variable "acr_name" {
-  type = string
+  description = "Name of the Azure Container Registry"
+  type        = string
 }
 
 variable "resource_group_name" {
-  type = string
+  description = "Name of the Resource Group"
+  type        = string
 }
 
 variable "location" {
-  type = string
+  description = "Azure region"
+  type        = string
+}
+
+variable "tags" {
+  description = "Tags to apply to resources"
+  type        = map(string)
+  default     = {}
 }
