@@ -79,7 +79,7 @@ jobs:
             -var="azure_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
             -var="azure_credentials=${{ secrets.AZURE_CREDENTIALS_JSON }}" \
             -var='environment_variables={AIRFLOW_VAR_ENV="dev"}' \
-            -var='tags={project="airflow"}' \
+            -var='tags={project:"airflow"}' \
             -out=tfplan
 
       - name: Terraform Apply
