@@ -60,7 +60,7 @@ jobs:
         run: terraform validate
 
       - name: Print full azure_credentials JSON (NOT recommended)
-        run: echo "${{ secrets.AZURE_CREDENTIALS_JSON }}"  
+        run: echo "${{ secrets.AZURE_CREDENTIALS_JSON }}"
 
       - name: Terraform Plan
         working-directory: terraform/dev/acr
