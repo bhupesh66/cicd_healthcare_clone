@@ -66,26 +66,18 @@ jobs:
 
       - name: Terraform Plan
         working-directory: terraform/${{ matrix.env }}/acr
-        run: |
-          terraform plan \
-            -input=false \
-            -lock-timeout=120s \
-            -var-file=terraform.tfvars \
-            -var="azure_client_id=${{ secrets.ACR_SP_USERNAME }}" \
-            -var="azure_client_secret=${{ secrets.ACR_SP_PASSWORD }}" \
-            -var="azure_tenant_id=${{ secrets.AZURE_TENANT_ID }}" \
-            -var="azure_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
-            -var="image_tag=${{ env.IMAGE_TAG }}" \
-            -out=tfplan
+        run: terraform plan \
+          -var "azure_credentials=${{ secrets.AZURE_CREDENTIALS_JSON }}" \
+          -var "acr_sp_username=${{ secrets.ACR_SP_USERNAME }}" \
+          -var "acr_sp_password=${{ secrets.ACR_SP_PASSWORD }}"
 
       - name: Terraform Apply
         if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
         working-directory: terraform/${{ matrix.env }}/acr
-        run: |
-          terraform apply \
-            -input=false \
-            -lock-timeout=120s \
-            tfplan
+        run: terraform apply -auto-approve \
+          -var "azure_credentials=${{ secrets.AZURE_CREDENTIALS_JSON }}" \
+          -var "acr_sp_username=${{ secrets.ACR_SP_USERNAME }}" \
+          -var "acr_sp_password=${{ secrets.ACR_SP_PASSWORD }}"
 
 
   docker-build-push:
