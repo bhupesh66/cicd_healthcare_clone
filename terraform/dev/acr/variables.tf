@@ -74,8 +74,5 @@ variable "acr_sp_password" {
   description = "ACR service principal password"
 }
 
-variable "azure_credentials" {
-  description = "Azure service principal credentials in JSON"
-  type        = string
-}
+
 
