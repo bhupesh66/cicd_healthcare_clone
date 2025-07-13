@@ -25,8 +25,8 @@ jobs:
       cancel-in-progress: true
 
     env:
-      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      ARM_CLIENT_ID: ${{ secrets.ACR_SP_USERNAME}}
+      ARM_CLIENT_SECRET: ${{ secrets.ACR_SP_PASSWORD }}
       ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
@@ -71,10 +71,9 @@ jobs:
             -input=false \
             -lock-timeout=120s \
             -var-file=terraform.tfvars \
-            -var="azure_client_id=${{ secrets.ACR_SP_USERNAME }}" \
-            -var="azure_client_secret=${{ secrets.ACR_SP_PASSWORD }}" \
-            -var="azure_tenant_id=${{ secrets.AZURE_TENANT_ID }}" \
-            -var="azure_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
+            -var="azure_credentials=${{ secrets.AZURE_CREDENTIALS_JSON }}" \
+            -var="acr_sp_username=${{ secrets.ACR_SP_USERNAME }}" \
+            -var="acr_sp_password=${{ secrets.ACR_SP_PASSWORD }}" \
             -var="image_tag=${{ env.IMAGE_TAG }}" \
             -out=tfplan
 
@@ -127,8 +126,8 @@ jobs:
       cancel-in-progress: true
 
     env:
-      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      ARM_CLIENT_ID: ${{ secrets.ACR_SP_USERNAME  }}
+      ARM_CLIENT_SECRET: ${{ secrets.ACR_SP_PASSWORD}}
       ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
@@ -164,4 +163,3 @@ jobs:
           terraform apply -lock-timeout=120s -auto-approve \
           -var-file=terraform.tfvars \
           -var="image_tag=${{ env.IMAGE_TAG }}"
-
