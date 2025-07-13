@@ -9,7 +9,7 @@ resource "azurerm_container_group" "aci" {
   os_type             = "Linux"
   ip_address_type     = "Public"
   dns_name_label      = "${var.prefix}-aci-${random_id.unique_id.hex}"
-  restart_policy      = "OnFailure"
+  restart_policy      = "OnFailure"  # Ok but consider "Always" if you want the container always running
 
   container {
     name   = "airflow"
@@ -22,7 +22,7 @@ resource "azurerm_container_group" "aci" {
       protocol = "TCP"
     }
 
-    environment_variables = var.environment_variables
+    environment_variables = var.environment_variables  # Make sure this is a map(string) with your env vars
   }
 
   image_registry_credential {
@@ -31,8 +31,5 @@ resource "azurerm_container_group" "aci" {
     password = var.acr_password
   }
 
- tags = var.tags
-
+  tags = var.tags
 }
-
-
