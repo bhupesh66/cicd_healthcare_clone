@@ -12,6 +12,10 @@ env:
   ACR_LOGIN_SERVER: acrairflowdevhealthcare.azurecr.io
   RESOURCE_GROUP_NAME: healthcare_project
   CONTAINER_INSTANCE_NAME: airflow-container
+  LOCATION: swedencentral
+  STORAGE_ACCOUNT_NAME: tfstate147025af
+  STORAGE_CONTAINER_NAME: tfstate
+  TFSTATE_BLOB_NAME: terraform.tfstate
 
 jobs:
   terraform-deploy:
@@ -27,12 +31,19 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS_JSON }}
 
+      - name: Set ARM environment variables for Terraform backend auth
+        run: |
+          echo "ARM_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
+          echo "ARM_CLIENT_SECRET=${{ secrets.AZURE_CLIENT_SECRET }}" >> $GITHUB_ENV
+          echo "ARM_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
+          echo "ARM_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
+
       - name: Break Terraform state blob lease if locked
         run: |
           az storage blob lease break \
-            --account-name tfstate147025af \
-            --container-name tfstate \
-            --blob-name terraform.tfstate \
+            --account-name ${{ env.STORAGE_ACCOUNT_NAME }} \
+            --container-name ${{ env.STORAGE_CONTAINER_NAME }} \
+            --blob-name ${{ env.TFSTATE_BLOB_NAME }} \
             --auth-mode login || echo "No lease to break"
 
       - name: Setup Terraform
@@ -60,11 +71,10 @@ jobs:
             -lock-timeout=120s \
             -var="resource_group_name=${{ env.RESOURCE_GROUP_NAME }}" \
             -var="acr_name=${{ env.ACR_NAME }}" \
-            -var="location=swedencentral" \
+            -var="location=${{ env.LOCATION }}" \
             -var="prefix=airflow" \
             -var="docker_image=${{ env.IMAGE_NAME }}" \
             -var="image_tag=${{ env.IMAGE_TAG }}" \
-            -var="azure_credentials=${{ secrets.AZURE_CREDENTIALS_JSON }}" \
             -var='environment_variables={AIRFLOW_VAR_ENV="dev"}' \
             -var='tags={project="airflow"}' \
             -out=tfplan
@@ -72,11 +82,7 @@ jobs:
       - name: Terraform Apply
         if: github.ref == 'refs/heads/dev'
         working-directory: terraform/dev/acr
-        run: |
-          terraform apply \
-            -input=false \
-            -lock-timeout=120s \
-            tfplan
+        run: terraform apply -input=false -lock-timeout=120s tfplan
 
   docker-build-push:
     name: Build and Push Docker Image
@@ -116,12 +122,19 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS_JSON }}
 
+      - name: Set ARM environment variables for Terraform backend auth
+        run: |
+          echo "ARM_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
+          echo "ARM_CLIENT_SECRET=${{ secrets.AZURE_CLIENT_SECRET }}" >> $GITHUB_ENV
+          echo "ARM_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
+          echo "ARM_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
+
       - name: Break Terraform state blob lease if locked
         run: |
           az storage blob lease break \
-            --account-name tfstate147025af \
-            --container-name tfstate \
-            --blob-name terraform.tfstate \
+            --account-name ${{ env.STORAGE_ACCOUNT_NAME }} \
+            --container-name ${{ env.STORAGE_CONTAINER_NAME }} \
+            --blob-name ${{ env.TFSTATE_BLOB_NAME }} \
             --auth-mode login || echo "No lease to break"
 
       - name: Setup Terraform
@@ -139,10 +152,9 @@ jobs:
           terraform apply -auto-approve -lock-timeout=120s \
             -var="resource_group_name=${{ env.RESOURCE_GROUP_NAME }}" \
             -var="acr_name=${{ env.ACR_NAME }}" \
-            -var="location=swedencentral" \
+            -var="location=${{ env.LOCATION }}" \
             -var="prefix=airflow" \
             -var="docker_image=${{ env.IMAGE_NAME }}" \
             -var="image_tag=${{ env.IMAGE_TAG }}" \
-            -var="azure_credentials=${{ secrets.AZURE_CREDENTIALS_JSON }}" \
             -var='environment_variables={AIRFLOW_VAR_ENV="dev"}' \
             -var='tags={project="airflow"}'
