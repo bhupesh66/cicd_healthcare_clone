@@ -12,6 +12,10 @@ env:
   ACR_LOGIN_SERVER: acrairflowdevhealthcare.azurecr.io
   RESOURCE_GROUP_NAME: healthcare_project
   CONTAINER_INSTANCE_NAME: airflow-container
+  LOCATION: swedencentral
+  PREFIX: airflow
+  TF_VAR_tags: '{"project":"airflow"}'
+  TF_VAR_environment_variables: '{"AIRFLOW_VAR_ENV":"dev"}'
 
 jobs:
   terraform-deploy:
@@ -27,13 +31,6 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS_JSON }}
 
-      - name: Export ARM Auth Environment Variables
-        run: |
-          echo "ARM_CLIENT_ID=${{ secrets.ACR_CLIENT_ID }}" >> $GITHUB_ENV
-          echo "ARM_CLIENT_SECRET=${{ secrets.ACR_CLIENT_SECRET }}" >> $GITHUB_ENV
-          echo "ARM_TENANT_ID=${{ secrets.ACR_TENANT_ID }}" >> $GITHUB_ENV
-          echo "ARM_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
-
       - name: Break Terraform state blob lease if locked
         run: |
           az storage blob lease break \
@@ -46,6 +43,7 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.5.7
+          terraform_wrapper: false
 
       - name: Terraform Init
         working-directory: terraform/dev/acr
@@ -53,18 +51,11 @@ jobs:
 
       - name: Terraform Format Check
         working-directory: terraform/dev/acr
-        run: terraform fmt -check
+        run: terraform fmt -check -recursive
 
       - name: Terraform Validate
         working-directory: terraform/dev/acr
         run: terraform validate
-
-      -  name: Print Azure credentials JSON (safe way)
-         run: echo '${{ secrets.AZURE_CREDENTIALS_JSON }}'
-
-      -  name: Print Azure credentials JSON (safe way2)
-         run: echo '${{ secrets.ACR_CLIENT_SECRET}}'
-
 
       - name: Terraform Plan
         working-directory: terraform/dev/acr
@@ -74,19 +65,12 @@ jobs:
             -lock-timeout=120s \
             -var="resource_group_name=${{ env.RESOURCE_GROUP_NAME }}" \
             -var="acr_name=${{ env.ACR_NAME }}" \
-            -var="location=swedencentral" \
-            -var="prefix=airflow" \
+            -var="location=${{ env.LOCATION }}" \
+            -var="prefix=${{ env.PREFIX }}" \
             -var="acr_sp_username=${{ secrets.ACR_SP_USERNAME }}" \
             -var="acr_sp_password=${{ secrets.ACR_SP_PASSWORD }}" \
             -var="docker_image=${{ env.IMAGE_NAME }}" \
             -var="image_tag=${{ env.IMAGE_TAG }}" \
-            -var="azure_client_id=${{ secrets.ACR_CLIENT_ID }}" \
-            -var="azure_client_secret=${{ secrets.ACR_CLIENT_SECRET }}" \
-            -var="azure_tenant_id=${{ secrets.ACR_TENANT_ID }}" \
-            -var="azure_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
-            -var="azure_credentials=${{ secrets.AZURE_CREDENTIALS_JSON }}" \
-            -var='environment_variables={AIRFLOW_VAR_ENV="dev"}' \
-            -var='tags={project:"airflow"}' \
             -out=tfplan
 
       - name: Terraform Apply
@@ -132,13 +116,6 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS_JSON }}
 
-      - name: Export ARM Auth Environment Variables
-        run: |
-          echo "ARM_CLIENT_ID=${{ secrets.ACR_CLIENT_ID }}" >> $GITHUB_ENV
-          echo "ARM_CLIENT_SECRET=${{ secrets.ACR_CLIENT_SECRET }}" >> $GITHUB_ENV
-          echo "ARM_TENANT_ID=${{ secrets.ACR_TENANT_ID }}" >> $GITHUB_ENV
-          echo "ARM_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
-
       - name: Break Terraform state blob lease if locked
         run: |
           az storage blob lease break \
@@ -162,16 +139,9 @@ jobs:
           terraform apply -auto-approve -lock-timeout=120s \
             -var="resource_group_name=${{ env.RESOURCE_GROUP_NAME }}" \
             -var="acr_name=${{ env.ACR_NAME }}" \
-            -var="location=swedencentral" \
-            -var="prefix=airflow" \
+            -var="location=${{ env.LOCATION }}" \
+            -var="prefix=${{ env.PREFIX }}" \
             -var="acr_sp_username=${{ secrets.ACR_SP_USERNAME }}" \
             -var="acr_sp_password=${{ secrets.ACR_SP_PASSWORD }}" \
             -var="docker_image=${{ env.IMAGE_NAME }}" \
-            -var="image_tag=${{ env.IMAGE_TAG }}" \
-            -var="azure_client_id=${{ secrets.ACR_CLIENT_ID }}" \
-            -var="azure_client_secret=${{ secrets.ACR_CLIENT_SECRET }}" \
-            -var="azure_tenant_id=${{ secrets.AZURE_TENANT_ID }}" \
-            -var="azure_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
-            -var="azure_credentials=${{ secrets.AZURE_CREDENTIALS_JSON }}" \
-            -var='environment_variables={AIRFLOW_VAR_ENV="dev"}' \
-            -var='tags={project="airflow"}'
+            -var="image_tag=${{ env.IMAGE_TAG }}"
