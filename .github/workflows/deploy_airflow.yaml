@@ -27,13 +27,6 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS_JSON }}
 
-      - name: Export ARM Auth Environment Variables
-        run: |
-          echo "ARM_CLIENT_ID=${{ secrets.ACR_CLIENT_ID }}" >> $GITHUB_ENV
-          echo "ARM_CLIENT_SECRET=${{ secrets.ACR_CLIENT_SECRET }}" >> $GITHUB_ENV
-          echo "ARM_TENANT_ID=${{ secrets.ACR_TENANT_ID }}" >> $GITHUB_ENV
-          echo "ARM_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
-
       - name: Break Terraform state blob lease if locked
         run: |
           az storage blob lease break \
@@ -69,14 +62,8 @@ jobs:
             -var="acr_name=${{ env.ACR_NAME }}" \
             -var="location=swedencentral" \
             -var="prefix=airflow" \
-            -var="acr_sp_username=${{ secrets.ACR_SP_USERNAME }}" \
-            -var="acr_sp_password=${{ secrets.ACR_SP_PASSWORD }}" \
             -var="docker_image=${{ env.IMAGE_NAME }}" \
             -var="image_tag=${{ env.IMAGE_TAG }}" \
-            -var="azure_client_id=${{ secrets.ACR_CLIENT_ID }}" \
-            -var="azure_client_secret=${{ secrets.ACR_CLIENT_SECRET }}" \
-            -var="azure_tenant_id=${{ secrets.ACR_TENANT_ID }}" \
-            -var="azure_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
             -var="azure_credentials=${{ secrets.AZURE_CREDENTIALS_JSON }}" \
             -var='environment_variables={AIRFLOW_VAR_ENV="dev"}' \
             -var='tags={project="airflow"}' \
@@ -129,13 +116,6 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS_JSON }}
 
-      - name: Export ARM Auth Environment Variables
-        run: |
-          echo "ARM_CLIENT_ID=${{ secrets.ACR_CLIENT_ID }}" >> $GITHUB_ENV
-          echo "ARM_CLIENT_SECRET=${{ secrets.ACR_CLIENT_SECRET }}" >> $GITHUB_ENV
-          echo "ARM_TENANT_ID=${{ secrets.ACR_TENANT_ID }}" >> $GITHUB_ENV
-          echo "ARM_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
-
       - name: Break Terraform state blob lease if locked
         run: |
           az storage blob lease break \
@@ -161,14 +141,8 @@ jobs:
             -var="acr_name=${{ env.ACR_NAME }}" \
             -var="location=swedencentral" \
             -var="prefix=airflow" \
-            -var="acr_sp_username=${{ secrets.ACR_SP_USERNAME }}" \
-            -var="acr_sp_password=${{ secrets.ACR_SP_PASSWORD }}" \
             -var="docker_image=${{ env.IMAGE_NAME }}" \
             -var="image_tag=${{ env.IMAGE_TAG }}" \
-            -var="azure_client_id=${{ secrets.ACR_CLIENT_ID }}" \
-            -var="azure_client_secret=${{ secrets.ACR_CLIENT_SECRET }}" \
-            -var="azure_tenant_id=${{ secrets.ACR_TENANT_ID }}" \
-            -var="azure_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
             -var="azure_credentials=${{ secrets.AZURE_CREDENTIALS_JSON }}" \
             -var='environment_variables={AIRFLOW_VAR_ENV="dev"}' \
             -var='tags={project="airflow"}'
