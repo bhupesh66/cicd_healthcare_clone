@@ -69,7 +69,7 @@ jobs:
             -input=false \
             -lock-timeout=120s \
             -var-file=terraform.tfvars \
-            -var="azure_credentials=${{ secrets.AZURE_CREDENTIALS }}" \
+            -var="azure_credentials=${{ secrets.AZURE_CREDENTIALS_JSON }}" \
             -var="azure_client_id=${{ env.azure_client_id }}" \
             -var="azure_client_secret=${{ env.azure_client_secret }}" \
             -var="azure_tenant_id=${{ env.azure_tenant_id }}" \
