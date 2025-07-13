@@ -78,8 +78,8 @@ jobs:
             -var="ACR_CLIENT_SECRET=${{ secrets.ACR_CLIENT_SECRET }}" \
             -var="ACR_TENANT_ID=${{ secrets.ACR_TENANT_ID }}" \
             -var="AZURE_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
-            -var='environment_variables={"AIRFLOW_VAR_ENV":"dev"}' \
-            -var='tags={"project":"airflow"}' \
+            -var='environment_variables={"AIRFLOW_VAR_ENV"="dev"}' \
+            -var='tags={"project"="airflow"}' \
             -out=tfplan
           EOF
           chmod +x plan.sh
