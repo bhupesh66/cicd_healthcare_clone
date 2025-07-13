@@ -25,8 +25,8 @@ module "container_instance" {
   source                = "../../modules/container_instance"
   prefix                = var.prefix
   location              = var.location
-  resource_group_name   = var.resource_group_name
-  acr_login_server      = data.azurerm_container_registry.acr.login_server
+  resource_group_name   = data.azurerm_resource_group.rg.name
+  acr_login_server      = module.acr.login_server
   acr_username          = var.acr_sp_username # 🔁 NEW: from tfvars / CI/CD
   acr_password          = var.acr_sp_password # 🔁 NEW: from tfvars / CI/CD
   docker_image          = var.docker_image

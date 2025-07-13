@@ -5,3 +5,7 @@ resource "azurerm_container_registry" "acr" {
   sku                 = "Basic"
   admin_enabled       = false
 }
+
+output "login_server" {
+  value = azurerm_container_registry.acr.login_server
+}
