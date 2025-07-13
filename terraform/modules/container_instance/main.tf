@@ -1,3 +1,7 @@
+resource "random_id" "unique_id" {
+  byte_length = 4
+}
+
 resource "azurerm_container_group" "aci" {
   name                = "${var.prefix}-aci"
   location            = var.location
@@ -17,8 +21,6 @@ resource "azurerm_container_group" "aci" {
       port     = 8080
       protocol = "TCP"
     }
-
-    commands = ["airflow", "webserver", "--port", "8080"]
 
     environment_variables = var.environment_variables
   }
