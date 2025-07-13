@@ -22,5 +22,10 @@ provider "azurerm" {
   # client_secret   = jsondecode(var.azure_credentials).clientSecret
   # tenant_id       = jsondecode(var.azure_credentials).tenantId
 
+  subscription_id = var.AZURE_SUBSCRIPTION_ID
+  client_id       = var.ACR_CLIENT_ID
+  client_secret   = var.ACR_CLIENT_SECRET
+  tenant_id       = var.ACR_TENANT_ID
+
   skip_provider_registration = true
 }
