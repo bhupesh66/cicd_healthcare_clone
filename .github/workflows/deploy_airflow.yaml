@@ -69,6 +69,7 @@ jobs:
             -input=false \
             -lock-timeout=120s \
             -var-file=terraform.tfvars \
+            -var="azure_credentials=${{ secrets.AZURE_CREDENTIALS }}" \
             -var="azure_client_id=${{ env.azure_client_id }}" \
             -var="azure_client_secret=${{ env.azure_client_secret }}" \
             -var="azure_tenant_id=${{ env.azure_tenant_id }}" \
@@ -76,7 +77,7 @@ jobs:
             -var="acr_sp_username=${{ env.acr_sp_username }}" \
             -var="acr_sp_password=${{ env.acr_sp_password }}" \
             -var="image_tag=${{ env.IMAGE_TAG }}" \
-            -out=tfplan
+             -out=tfplan
 
       - name: Terraform Apply
         if: github.ref == 'refs/heads/dev'
