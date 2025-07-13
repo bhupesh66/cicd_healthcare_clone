@@ -1,3 +1,7 @@
+resource "random_id" "unique_id" {
+  byte_length = 4
+}
+
 resource "azurerm_container_group" "aci" {
   name                = "${var.prefix}-aci"
   location            = var.location
@@ -10,8 +14,8 @@ resource "azurerm_container_group" "aci" {
   container {
     name   = "airflow"
     image  = "${var.acr_login_server}/${var.docker_image}:${var.image_tag}"
-    cpu    = "1"
-    memory = "2"
+    cpu    = 1
+    memory = 2
 
     ports {
       port     = 8080
@@ -28,4 +32,8 @@ resource "azurerm_container_group" "aci" {
   }
 
   tags = var.tags
+}
+
+output "container_fqdn" {
+  value = azurerm_container_group.aci.fqdn
 }
