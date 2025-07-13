@@ -33,6 +33,7 @@ variable "tags" {
 }
 
 
+
 variable "acr_username" {
   description = "ACR Username"
   type        = string
