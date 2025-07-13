@@ -18,16 +18,8 @@ jobs:
     name: Terraform Deploy Infrastructure
     runs-on: ubuntu-latest
     env:
-      azure_client_id: ${{ secrets.AZURE_CLIENT_ID }}
-      azure_client_secret: ${{ secrets.AZURE_CLIENT_SECRET }}
-      azure_tenant_id: ${{ secrets.AZURE_TENANT_ID }}
-      azure_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       acr_sp_username: ${{ secrets.ACR_SP_USERNAME }}
       acr_sp_password: ${{ secrets.ACR_SP_PASSWORD }}
-      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
     steps:
       - name: Checkout Code
@@ -36,7 +28,7 @@ jobs:
       - name: Azure Login
         uses: azure/login@v1
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          creds: ${{ secrets.AZURE_CREDENTIALS_JSON }}
 
       - name: Break Terraform state blob lease if any
         run: |
@@ -71,10 +63,6 @@ jobs:
             -lock-timeout=120s \
             -var-file=terraform.tfvars \
             -var="azure_credentials=${{ secrets.AZURE_CREDENTIALS_JSON }}" \
-            -var="azure_client_id=${{ env.azure_client_id }}" \
-            -var="azure_client_secret=${{ env.azure_client_secret }}" \
-            -var="azure_tenant_id=${{ env.azure_tenant_id }}" \
-            -var="azure_subscription_id=${{ env.azure_subscription_id }}" \
             -var="acr_sp_username=${{ env.acr_sp_username }}" \
             -var="acr_sp_password=${{ env.acr_sp_password }}" \
             -var="image_tag=${{ env.IMAGE_TAG }}" \
@@ -83,11 +71,7 @@ jobs:
       - name: Terraform Apply
         if: github.ref == 'refs/heads/dev'
         working-directory: terraform/dev/acr
-        run: |
-          terraform apply \
-            -input=false \
-            -lock-timeout=120s \
-            tfplan
+        run: terraform apply -input=false -lock-timeout=120s tfplan
 
   docker-build-push:
     name: Build and Push Docker Image
@@ -107,18 +91,16 @@ jobs:
       - name: Azure Login
         uses: azure/login@v1
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          creds: ${{ secrets.AZURE_CREDENTIALS_JSON }}
 
       - name: ACR Login
         run: az acr login --name ${{ env.ACR_NAME }}
 
       - name: Docker Build
-        run: |
-          docker build -t ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} .
+        run: docker build -t ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} .
 
       - name: Docker Push
-        run: |
-          docker push ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+        run: docker push ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
 
   terraform-redeploy:
     name: Terraform Re-Apply with New Image
@@ -126,10 +108,6 @@ jobs:
     if: github.event.head_commit.message != 'skip-infra'
     runs-on: ubuntu-latest
     env:
-      azure_client_id: ${{ secrets.AZURE_CLIENT_ID }}
-      azure_client_secret: ${{ secrets.AZURE_CLIENT_SECRET }}
-      azure_tenant_id: ${{ secrets.AZURE_TENANT_ID }}
-      azure_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       acr_sp_username: ${{ secrets.ACR_SP_USERNAME }}
       acr_sp_password: ${{ secrets.ACR_SP_PASSWORD }}
       ACR_LOGIN_SERVER: acrairflowdevhealthcare.azurecr.io
@@ -142,7 +120,7 @@ jobs:
       - name: Azure Login
         uses: azure/login@v1
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          creds: ${{ secrets.AZURE_CREDENTIALS_JSON }}
 
       - name: Break Terraform state blob lease if any
         run: |
@@ -166,10 +144,7 @@ jobs:
         run: |
           terraform apply -lock-timeout=120s -auto-approve \
             -var-file=terraform.tfvars \
-            -var="azure_client_id=${{ env.azure_client_id }}" \
-            -var="azure_client_secret=${{ env.azure_client_secret }}" \
-            -var="azure_tenant_id=${{ env.azure_tenant_id }}" \
-            -var="azure_subscription_id=${{ env.azure_subscription_id }}" \
+            -var="azure_credentials=${{ secrets.AZURE_CREDENTIALS_JSON }}" \
             -var="acr_sp_username=${{ env.acr_sp_username }}" \
             -var="acr_sp_password=${{ env.acr_sp_password }}" \
             -var="acr_login_server=${{ env.ACR_LOGIN_SERVER }}" \
