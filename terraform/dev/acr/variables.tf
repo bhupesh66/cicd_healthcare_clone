@@ -41,28 +41,26 @@ variable "tags" {
   }
 }
 
-variable "azure_client_id" {
+variable "AZURE_SUBSCRIPTION_ID" {
   type = string
-
+  description = "Azure Subscription ID"
 }
 
-variable "azure_client_secret" {
+variable "ACR_CLIENT_ID" {
   type = string
-
+  description = "Azure Container Registry client ID"
 }
 
-variable "azure_tenant_id" {
+variable "ACR_CLIENT_SECRET" {
   type = string
-
-}
-variable "azure_subscription_id" {
-  type = string
-
+  description = "Azure Container Registry client secret"
 }
 
-variable "azure_credentials" {
+variable "ACR_TENANT_ID" {
   type = string
+  description = "Azure Tenant ID"
 }
+
 
 variable "acr_sp_username" {
   type        = string
