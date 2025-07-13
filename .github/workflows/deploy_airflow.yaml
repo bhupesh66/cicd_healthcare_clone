@@ -29,50 +29,22 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS_JSON }}
 
-      - name: Export ARM Auth Variables
+      - name: Check ACR and Login or Create & Login
         run: |
-          echo "ARM_CLIENT_ID=${{ secrets.ACR_CLIENT_ID }}" >> $GITHUB_ENV
-          echo "ARM_CLIENT_SECRET=${{ secrets.ACR_CLIENT_SECRET }}" >> $GITHUB_ENV
-          echo "ARM_TENANT_ID=${{ secrets.ACR_TENANT_ID }}" >> $GITHUB_ENV
-          echo "ARM_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV    
+          set -e
+          ACR_NAME="${{ env.ACR_NAME }}"
+          RESOURCE_GROUP="${{ env.RESOURCE_GROUP_NAME }}"
+          LOCATION="${{ env.LOCATION }}"
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.5.7    
-
-      - name: Terraform Init
-        working-directory: terraform/dev/acr
-        run: terraform init
-
-      - name: Terraform Format Check
-        working-directory: terraform/dev/acr
-        run: terraform fmt -check
-
-      - name: Terraform Validate
-        working-directory: terraform/dev/acr
-        run: terraform validate
-
-      - name: Terraform Plan
-        working-directory: terraform/dev/acr
-        run: |
-           terraform plan \
-           -input=false \
-           -lock-timeout=120s \
-           -target=module.acr \
-            -var="resource_group_name=${{ env.RESOURCE_GROUP_NAME }}" \
-            -var="acr_name=${{ env.ACR_NAME }}" \
-             -var="location=${{ env.LOCATION }}" \
-             -out=tfplan
-
-      - name: Terraform Apply
-        if: github.ref == 'refs/heads/dev'
-        working-directory: terraform/dev/acr
-        run: terraform apply -input=false -lock-timeout=120s tfplan
-    
-
-      - name: ACR Login
-        run: az acr login --name ${{ env.ACR_NAME }}
+          if az acr show --name "$ACR_NAME" --resource-group "$RESOURCE_GROUP" &>/dev/null; then
+            echo "ACR $ACR_NAME exists. Logging in..."
+            az acr login --name "$ACR_NAME"
+          else
+            echo "ACR $ACR_NAME does not exist. Creating..."
+            az acr create --resource-group "$RESOURCE_GROUP" --name "$ACR_NAME" --sku Basic --location "$LOCATION" --admin-enabled false
+            echo "ACR created. Logging in..."
+            az acr login --name "$ACR_NAME"
+          fi
 
       - name: Docker Build
         run: docker build -f Dockerfile -t ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} .
