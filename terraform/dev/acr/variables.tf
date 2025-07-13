@@ -42,22 +42,22 @@ variable "tags" {
 }
 
 variable "AZURE_SUBSCRIPTION_ID" {
-  type = string
+  type        = string
   description = "Azure Subscription ID"
 }
 
 variable "ACR_CLIENT_ID" {
-  type = string
+  type        = string
   description = "Azure Container Registry client ID"
 }
 
 variable "ACR_CLIENT_SECRET" {
-  type = string
+  type        = string
   description = "Azure Container Registry client secret"
 }
 
 variable "ACR_TENANT_ID" {
-  type = string
+  type        = string
   description = "Azure Tenant ID"
 }
 
