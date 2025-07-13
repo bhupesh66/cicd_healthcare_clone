@@ -1,28 +1,17 @@
-name: Deploy Airflow to Azure
+name: Deploy Databricks Infrastructure
 
 on:
   push:
     branches:
-      - dev
-
-env:
-  IMAGE_NAME: airflow-custom
-  IMAGE_TAG: latest_img
-  ACR_NAME: acrairflowdevhealthcare
-  RESOURCE_GROUP: healthcare_project
-  CONTAINER_INSTANCE_NAME: airflow-container
+      - main
+  workflow_dispatch:  # manual trigger
 
 jobs:
-  terraform-deploy:
-    name: Terraform Deploy Infrastructure
+  terraform:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         env: [dev]
-
-    concurrency:
-      group: terraform-${{ matrix.env }}
-      cancel-in-progress: true
 
     env:
       ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
@@ -31,100 +20,67 @@ jobs:
       ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
     steps:
-      - name: Checkout Code
+      - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Azure Login
-        uses: azure/login@v1
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Break Terraform state blob lease if any
-        run: |
-          az storage blob lease break \
-            --account-name tfstate147025af \
-            --container-name tfstate \
-            --blob-name terraform.tfstate \
-            --auth-mode login || echo "No lease to break"
+      - name: List terraform folder contents
+        run: ls -la terraform/${{ matrix.env }}/databricks
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: 1.5.7
 
       - name: Terraform Init
-        working-directory: terraform/${{ matrix.env }}/acr
+        working-directory: terraform/${{ matrix.env }}/databricks
         run: terraform init
 
-      - name: Terraform Format Check
-        working-directory: terraform/${{ matrix.env }}/acr
-        run: terraform fmt -check
-
-      - name: Terraform Validate
-        working-directory: terraform/${{ matrix.env }}/acr
-        run: terraform validate
-
       - name: Terraform Plan
-        working-directory: terraform/${{ matrix.env }}/acr
-        run: |
-          terraform plan \
-            -input=false \
-            -lock-timeout=120s \
-            -var-file=terraform.tfvars \
-            -var="azure_client_id=${{ secrets.ACR_SP_USERNAME }}" \
-            -var="azure_client_secret=${{ secrets.ACR_SP_PASSWORD }}" \
-            -var="azure_tenant_id=${{ secrets.AZURE_TENANT_ID }}" \
-            -var="azure_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
-            -var="image_tag=${{ env.IMAGE_TAG }}" \
-            -out=tfplan
+        working-directory: terraform/${{ matrix.env }}/databricks
+        run: terraform plan \
+          -var "azure_credentials=${{ secrets.AZURE_CREDENTIALS }}" \
+          -var "acr_sp_username=${{ secrets.ACR_SP_USERNAME }}" \
+          -var "acr_sp_password=${{ secrets.ACR_SP_PASSWORD }}" \
+          -var-file=terraform.tfvars
 
       - name: Terraform Apply
         if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
-        working-directory: terraform/${{ matrix.env }}/acr
+        working-directory: terraform/${{ matrix.env }}/databricks
+        run: terraform apply -auto-approve \
+          -var "azure_credentials=${{ secrets.AZURE_CREDENTIALS }}" \
+          -var "acr_sp_username=${{ secrets.ACR_SP_USERNAME }}" \
+          -var "acr_sp_password=${{ secrets.ACR_SP_PASSWORD }}" \
+          -var-file=terraform.tfvars
+
+      - name: Install Databricks CLI & jq
         run: |
-          terraform apply \
-            -input=false \
-            -lock-timeout=120s \
-            tfplan
+          pip install databricks-cli
+          sudo apt-get update && sudo apt-get install -y jq
 
+      - name: Configure Databricks CLI
+        run: |
+          databricks configure --token <<EOF
+          ${{ secrets.DATABRICKS_HOST }}
+          ${{ secrets.DATABRICKS_TOKEN }}
+          EOF
 
-  docker-build-push:
-    name: Build and Push Docker Image
-    needs: terraform-deploy
+      - name: Create /Shared/project folder in Databricks Workspace
+        run: databricks workspace mkdirs /Shared/project
+
+      - name: Upload Notebooks to Workspace
+        run: |
+          echo "Uploading notebooks to /Shared/project..."
+          for nb in notebooks/*; do
+            base=$(basename "$nb")
+            databricks workspace import --language PYTHON --format SOURCE --overwrite "$nb" "/Shared/project/$base"
+          done
+
+  terraform_destroy:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
-
-      - name: Azure Login
-        uses: azure/login@v1
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: ACR Login
-        run: az acr login --name ${{ env.ACR_NAME }}
-
-      - name: Docker Build
-        run: |
-          docker build -t ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} .
-
-      - name: Docker Push
-        run: |
-          docker push ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-
-  terraform-redeploy:
-    name: Terraform Re-Apply with New Image
-    needs: docker-build-push
-    runs-on: ubuntu-latest
-    if: github.event.head_commit.message != 'skip-infra'
     strategy:
       matrix:
         env: [dev]
-
-    concurrency:
-      group: terraform-${{ matrix.env }}
-      cancel-in-progress: true
 
     env:
       ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
@@ -133,35 +89,22 @@ jobs:
       ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
     steps:
-      - name: Checkout Code
+      - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Azure Login
-        uses: azure/login@v1
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Break Terraform state blob lease if any
-        run: |
-          az storage blob lease break \
-            --account-name tfstate147025af \
-            --container-name tfstate \
-            --blob-name terraform.tfstate \
-            --auth-mode login || echo "No lease to break"
-
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: 1.5.7
 
       - name: Terraform Init
-        working-directory: terraform/${{ matrix.env }}/acr
+        working-directory: terraform/${{ matrix.env }}/databricks
         run: terraform init
 
-      - name: Terraform Apply with Image Tag
-        working-directory: terraform/${{ matrix.env }}/acr
-        run: |
-          terraform apply -lock-timeout=120s -auto-approve \
-          -var-file=terraform.tfvars \
-          -var="image_tag=${{ env.IMAGE_TAG }}"
-
+      - name: Terraform Destroy
+        working-directory: terraform/${{ matrix.env }}/databricks
+        run: terraform destroy -auto-approve \
+          -var "azure_credentials=${{ secrets.AZURE_CREDENTIALS }}" \
+          -var "acr_sp_username=${{ secrets.ACR_SP_USERNAME }}" \
+          -var "acr_sp_password=${{ secrets.ACR_SP_PASSWORD }}" \
+          -var-file=terraform.tfvars
