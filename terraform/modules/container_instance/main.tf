@@ -31,7 +31,8 @@ resource "azurerm_container_group" "aci" {
     password = var.acr_password
   }
 
-  tags = {}
+ tags = var.tags
+
 }
 
 

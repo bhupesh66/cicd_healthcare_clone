@@ -28,9 +28,10 @@ variable "environment_variables" {
 }
 
 variable "tags" {
-  type = map(string)
+  type    = map(string)
   default = {}
 }
+
 
 variable "acr_username" {
   description = "ACR Username"
