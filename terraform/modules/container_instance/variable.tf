@@ -44,3 +44,7 @@ variable "acr_password" {
   type        = string
 }
 
+variable "acr_login_server" {
+  description = "The login server of the Azure Container Registry"
+  type        = string
+}
