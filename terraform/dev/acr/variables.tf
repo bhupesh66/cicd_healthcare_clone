@@ -35,11 +35,13 @@ variable "environment_variables" {
 
 
 variable "tags" {
+  type = map(string)
   default = {
     environment = "dev"
     project     = "airflow"
   }
 }
+
 
 variable "AZURE_SUBSCRIPTION_ID" {
   type        = string
