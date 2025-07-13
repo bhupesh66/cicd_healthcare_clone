@@ -64,6 +64,14 @@ variable "azure_credentials" {
   type = string
 }
 
+variable "acr_sp_username" {
+  type = string
+  description = "ACR service principal username"
+}
 
+variable "acr_sp_password" {
+  type = string
+  description = "ACR service principal password"
+}
 
 
