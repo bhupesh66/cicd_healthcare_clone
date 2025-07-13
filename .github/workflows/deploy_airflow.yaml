@@ -16,17 +16,15 @@ jobs:
   terraform-deploy:
     name: Terraform Deploy Infrastructure
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        env: [dev]
-
-    concurrency:
-      group: terraform-${{ matrix.env }}
-      cancel-in-progress: true
-
     env:
-      ARM_CLIENT_ID: ${{ secrets.ACR_SP_USERNAME}}
-      ARM_CLIENT_SECRET: ${{ secrets.ACR_SP_PASSWORD }}
+      azure_client_id: ${{ secrets.AZURE_CLIENT_ID }}
+      azure_client_secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+      azure_tenant_id: ${{ secrets.AZURE_TENANT_ID }}
+      azure_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      acr_sp_username: ${{ secrets.ACR_SP_USERNAME }}
+      acr_sp_password: ${{ secrets.ACR_SP_PASSWORD }}
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
       ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
@@ -53,44 +51,51 @@ jobs:
           terraform_version: 1.5.7
 
       - name: Terraform Init
-        working-directory: terraform/${{ matrix.env }}/acr
+        working-directory: terraform/dev/acr
         run: terraform init
 
       - name: Terraform Format Check
-        working-directory: terraform/${{ matrix.env }}/acr
+        working-directory: terraform/dev/acr
         run: terraform fmt -check
 
       - name: Terraform Validate
-        working-directory: terraform/${{ matrix.env }}/acr
+        working-directory: terraform/dev/acr
         run: terraform validate
 
       - name: Terraform Plan
-        working-directory: terraform/${{ matrix.env }}/acr
+        working-directory: terraform/dev/acr
         run: |
           terraform plan \
             -input=false \
             -lock-timeout=120s \
             -var-file=terraform.tfvars \
-            -var="azure_credentials=${{ secrets.AZURE_CREDENTIALS_JSON }}" \
-            -var="acr_sp_username=${{ secrets.ACR_SP_USERNAME }}" \
-            -var="acr_sp_password=${{ secrets.ACR_SP_PASSWORD }}" \
+            -var="azure_client_id=${{ env.azure_client_id }}" \
+            -var="azure_client_secret=${{ env.azure_client_secret }}" \
+            -var="azure_tenant_id=${{ env.azure_tenant_id }}" \
+            -var="azure_subscription_id=${{ env.azure_subscription_id }}" \
+            -var="acr_sp_username=${{ env.acr_sp_username }}" \
+            -var="acr_sp_password=${{ env.acr_sp_password }}" \
             -var="image_tag=${{ env.IMAGE_TAG }}" \
             -out=tfplan
 
       - name: Terraform Apply
-        if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
-        working-directory: terraform/${{ matrix.env }}/acr
+        if: github.ref == 'refs/heads/dev'
+        working-directory: terraform/dev/acr
         run: |
           terraform apply \
             -input=false \
             -lock-timeout=120s \
             tfplan
 
-
   docker-build-push:
     name: Build and Push Docker Image
     needs: terraform-deploy
     runs-on: ubuntu-latest
+
+    env:
+      ACR_NAME: acrairflowdevhealthcare
+      IMAGE_NAME: airflow-custom
+      IMAGE_TAG: latest_img
 
     steps:
       - name: Checkout Code
@@ -115,21 +120,16 @@ jobs:
   terraform-redeploy:
     name: Terraform Re-Apply with New Image
     needs: docker-build-push
-    runs-on: ubuntu-latest
     if: github.event.head_commit.message != 'skip-infra'
-    strategy:
-      matrix:
-        env: [dev]
-
-    concurrency:
-      group: terraform-${{ matrix.env }}
-      cancel-in-progress: true
-
+    runs-on: ubuntu-latest
     env:
-      ARM_CLIENT_ID: ${{ secrets.ACR_SP_USERNAME  }}
-      ARM_CLIENT_SECRET: ${{ secrets.ACR_SP_PASSWORD}}
-      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      azure_client_id: ${{ secrets.AZURE_CLIENT_ID }}
+      azure_client_secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+      azure_tenant_id: ${{ secrets.AZURE_TENANT_ID }}
+      azure_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      acr_sp_username: ${{ secrets.ACR_SP_USERNAME }}
+      acr_sp_password: ${{ secrets.ACR_SP_PASSWORD }}
+      IMAGE_TAG: latest_img
 
     steps:
       - name: Checkout Code
@@ -154,12 +154,18 @@ jobs:
           terraform_version: 1.5.7
 
       - name: Terraform Init
-        working-directory: terraform/${{ matrix.env }}/acr
+        working-directory: terraform/dev/acr
         run: terraform init
 
       - name: Terraform Apply with Image Tag
-        working-directory: terraform/${{ matrix.env }}/acr
+        working-directory: terraform/dev/acr
         run: |
           terraform apply -lock-timeout=120s -auto-approve \
-          -var-file=terraform.tfvars \
-          -var="image_tag=${{ env.IMAGE_TAG }}"
+            -var-file=terraform.tfvars \
+            -var="azure_client_id=${{ env.azure_client_id }}" \
+            -var="azure_client_secret=${{ env.azure_client_secret }}" \
+            -var="azure_tenant_id=${{ env.azure_tenant_id }}" \
+            -var="azure_subscription_id=${{ env.azure_subscription_id }}" \
+            -var="acr_sp_username=${{ env.acr_sp_username }}" \
+            -var="acr_sp_password=${{ env.acr_sp_password }}" \
+            -var="image_tag=${{ env.IMAGE_TAG }}"
