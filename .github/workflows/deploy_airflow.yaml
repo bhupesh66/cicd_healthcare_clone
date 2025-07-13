@@ -60,8 +60,7 @@ jobs:
         run: terraform validate
 
       -  name: Print Azure credentials JSON (safe way)
-         run: |
-            echo '${{ secrets.AZURE_CREDENTIALS_JSON }}'
+         run: echo '${{ secrets.AZURE_CREDENTIALS_JSON }}'
 
 
       - name: Terraform Plan
