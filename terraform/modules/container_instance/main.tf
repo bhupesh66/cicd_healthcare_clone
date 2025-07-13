@@ -34,6 +34,4 @@ resource "azurerm_container_group" "aci" {
   tags = var.tags
 }
 
-output "container_fqdn" {
-  value = azurerm_container_group.aci.fqdn
-}
+
