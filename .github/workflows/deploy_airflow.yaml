@@ -125,12 +125,19 @@ jobs:
         working-directory: terraform/dev/acr
         run: terraform apply -input=false -lock-timeout=120s tfplan
 
-      - name: Fetch Airflow Container Logs (Redeploy)
+      - name: Wait for Azure Container Instance to be ready
         run: |
-         echo "Fetching logs for Azure Container Instance '${{ env.CONTAINER_INSTANCE_NAME }}' (redeploy)..."
-         az container logs \
-          --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
-          --name ${{ env.CONTAINER_INSTANCE_NAME }}  
+          echo "Waiting for container instance '${{ env.CONTAINER_INSTANCE_NAME }}' to be ready..."
+          for i in {1..30}; do
+            az container show --resource-group ${{ env.RESOURCE_GROUP_NAME }} --name ${{ env.CONTAINER_INSTANCE_NAME }} && break
+            echo "Container not found yet, retrying in 10 seconds..."
+            sleep 10
+          done
+
+      - name: Fetch Airflow Container Logs (Deploy)
+        run: |
+          echo "Fetching logs for Azure Container Instance '${{ env.CONTAINER_INSTANCE_NAME }}'..."
+          az container logs --resource-group ${{ env.RESOURCE_GROUP_NAME }} --name ${{ env.CONTAINER_INSTANCE_NAME }}
 
   terraform-redeploy:
     name: Terraform Re-Apply with New Image
@@ -190,9 +197,16 @@ jobs:
             -var='environment_variables={"AIRFLOW_VAR_ENV":"dev"}' \
             -var='tags={"project":"airflow"}'
 
+      - name: Wait for Azure Container Instance to be ready (Redeploy)
+        run: |
+          echo "Waiting for container instance '${{ env.CONTAINER_INSTANCE_NAME }}' to be ready after redeploy..."
+          for i in {1..30}; do
+            az container show --resource-group ${{ env.RESOURCE_GROUP_NAME }} --name ${{ env.CONTAINER_INSTANCE_NAME }} && break
+            echo "Container not found yet, retrying in 10 seconds..."
+            sleep 10
+          done
+
       - name: Fetch Airflow Container Logs (Redeploy)
         run: |
-         echo "Fetching logs for Azure Container Instance '${{ env.CONTAINER_INSTANCE_NAME }}' (redeploy)..."
-         az container logs \
-          --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
-          --name ${{ env.CONTAINER_INSTANCE_NAME }}
+          echo "Fetching logs for Azure Container Instance '${{ env.CONTAINER_INSTANCE_NAME }}' (redeploy)..."
+          az container logs --resource-group ${{ env.RESOURCE_GROUP_NAME }} --name ${{ env.CONTAINER_INSTANCE_NAME }}
