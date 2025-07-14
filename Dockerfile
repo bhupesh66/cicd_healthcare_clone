@@ -17,5 +17,9 @@ COPY ./requirements.txt /requirements.txt
 # Install Python dependencies
 RUN pip install --no-cache-dir -r /requirements.txt
 
-# Start Airflow webserver on container startup
+# Copy the entrypoint script and make it executable
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["airflow", "webserver", "--port", "8080"]

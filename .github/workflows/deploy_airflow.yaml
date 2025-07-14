@@ -125,6 +125,13 @@ jobs:
         working-directory: terraform/dev/acr
         run: terraform apply -input=false -lock-timeout=120s tfplan
 
+      - name: Fetch Airflow Container Logs (Redeploy)
+        run: |
+         echo "Fetching logs for Azure Container Instance '${{ env.CONTAINER_INSTANCE_NAME }}' (redeploy)..."
+         az container logs \
+          --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
+          --name ${{ env.CONTAINER_INSTANCE_NAME }}  
+
   terraform-redeploy:
     name: Terraform Re-Apply with New Image
     needs: terraform-deploy
@@ -182,3 +189,10 @@ jobs:
             -var="AZURE_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
             -var='environment_variables={"AIRFLOW_VAR_ENV":"dev"}' \
             -var='tags={"project":"airflow"}'
+
+      - name: Fetch Airflow Container Logs (Redeploy)
+        run: |
+         echo "Fetching logs for Azure Container Instance '${{ env.CONTAINER_INSTANCE_NAME }}' (redeploy)..."
+         az container logs \
+          --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
+          --name ${{ env.CONTAINER_INSTANCE_NAME }}
