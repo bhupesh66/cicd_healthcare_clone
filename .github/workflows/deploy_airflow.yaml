@@ -11,9 +11,9 @@ env:
   ACR_NAME: acrairflowdevhealthcare
   ACR_LOGIN_SERVER: acrairflowdevhealthcare.azurecr.io
   RESOURCE_GROUP_NAME: healthcare_project
-  CONTAINER_INSTANCE_NAME: airflowdev-aci
+  CONTAINER_INSTANCE_NAME: airflow-aci
   LOCATION: swedencentral
-  PREFIX: airflow
+  PREFIX: airflowdev
 
 jobs:
   docker-build-push:
