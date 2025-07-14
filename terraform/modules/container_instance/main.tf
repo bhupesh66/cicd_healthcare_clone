@@ -22,6 +22,8 @@ resource "azurerm_container_group" "aci" {
       protocol = "TCP"
     }
 
+   commands = ["airflow", "webserver", "--port", "8080"]
+
     environment_variables = var.environment_variables
   }
 
