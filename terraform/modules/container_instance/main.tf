@@ -22,11 +22,10 @@ resource "azurerm_container_group" "aci" {
       protocol = "TCP"
     }
 
-    commands = [
-      "airflow",
-      "webserver",
-      "--port",
-      "8080"
+     commands = [
+      "/bin/sh",
+      "-c",
+      "airflow db init && airflow webserver --port 8080"
     ]
 
     environment_variables = {
