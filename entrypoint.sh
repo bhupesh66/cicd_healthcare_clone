@@ -1,10 +1,11 @@
 #!/bin/bash
 set -e
 
-# Upgrade Airflow DB (migrations)
-airflow db upgrade
+# Initialize the Airflow database (if it doesn't exist)
+airflow db init || true
 
-# You can add other initialization commands here, like creating users
+# Start scheduler in the background
+airflow scheduler &
 
-# Run the CMD (airflow webserver ...)
+# Start webserver
 exec "$@"
