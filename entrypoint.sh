@@ -1,11 +1,8 @@
 #!/bin/bash
 set -e
 
-# Initialize the Airflow database (if it doesn't exist)
-airflow db init || true
+# Initialize Airflow DB if not initialized
+airflow db init
 
-# Start scheduler in the background
-airflow scheduler &
-
-# Start webserver
+# Execute the container CMD (e.g. airflow webserver)
 exec "$@"
