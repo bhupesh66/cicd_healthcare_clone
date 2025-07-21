@@ -18,15 +18,15 @@ ENV AIRFLOW__CORE__SQL_ALCHEMY_CONN="postgresql+psycopg2://pgadmin:StrongP@ssw0r
 COPY ./dags /opt/airflow/dags
 COPY ./requirements.txt /requirements.txt
 
-# Install Python dependencies
+# Switch to airflow user for pip install and entrypoint permission
+USER airflow
+
+# Install Python dependencies as airflow user
 RUN pip install --no-cache-dir -r /requirements.txt
 
-# Copy entrypoint script and make executable as root
-COPY entrypoint.sh /entrypoint.sh
+# Copy entrypoint script and make executable as airflow user
+COPY --chown=airflow:airflow entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
-
-# Switch to airflow user only after setting permissions
-USER airflow
 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["airflow", "webserver", "--port", "8080"]
