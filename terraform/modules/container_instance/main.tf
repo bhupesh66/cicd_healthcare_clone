@@ -22,11 +22,12 @@ resource "azurerm_container_group" "aci" {
       protocol = "TCP"
     }
 
-     commands = [
-      "/bin/sh",
-      "-c",
-      "airflow db init && airflow webserver --port 8080"
-    ]
+    commands = [
+     "/bin/sh",
+     "-c",
+     "airflow db init || echo 'airflow db init failed'; sleep 3600"
+  ]
+
 
     environment_variables = {
       AIRFLOW__CORE__EXECUTOR         = "SequentialExecutor"
