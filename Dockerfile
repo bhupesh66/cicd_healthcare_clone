@@ -12,7 +12,8 @@ RUN apt-get update && apt-get install -y \
 RUN mkdir -p /opt/airflow/logs /opt/airflow/tmp && chmod -R 777 /opt/airflow
 
 # Set Airflow DB connection string environment variable (correct format)
-ENV AIRFLOW__DATABASE__SQL_ALCHEMY_CONN="postgresql+psycopg2://bhupesh%40mypgserver1753137250:ssw0rd123@mypgserver1753137250.postgres.database.azure.com:5432/airflowdb?sslmode=require"
+ENV AIRFLOW__DATABASE__SQL_ALCHEMY_CONN="postgresql+psycopg2://pgadmin%40mypgserver1753137250:NewStrongPassword123%21@mypgserver1753137250.postgres.database.azure.com:5432/airflowdb?sslmode=require"
+
 
 # Copy your DAGs and requirements.txt
 COPY ./dags /opt/airflow/dags
