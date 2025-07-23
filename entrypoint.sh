@@ -1,9 +1,11 @@
 #!/bin/bash
 set -e
 
-# Initialize Airflow DB schema and create default connections
+# Initialize Airflow DB schema (safe even if already initialized)
 airflow db migrate
-airflow connections create-default-connections
 
-# Execute the container CMD (e.g. airflow webserver)
-exec "$@"
+# Start scheduler in the background
+airflow scheduler &
+
+# Start webserver (keeps the container running)
+exec airflow webserver --port 8080
