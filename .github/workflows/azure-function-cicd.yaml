@@ -13,22 +13,26 @@ jobs:
       matrix:
         env: [dev]
 
+    env:
+      # Set default env variables here if you want
+      RESOURCE_GROUP_NAME: healthcare_project
+
     steps:
-      # Step 1: Checkout Code
+      # Step 1: Checkout code
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Step 2: Show directory structure for debugging
+      # Step 2: Debug - list terraform folder contents
       - name: List terraform folder contents
         run: ls -la terraform/${{ matrix.env }}/infra
 
-      # Step 3: Login to Azure
-      - name: Azure Login 
+      # Step 3: Azure login
+      - name: Azure Login
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # Step 4: Export ARM variables for Terraform (auth only)
+      # Step 4: Export ARM environment variables (for Terraform AzureRM provider auth)
       - name: Export ARM environment variables
         run: |
           echo "ARM_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
@@ -36,22 +40,22 @@ jobs:
           echo "ARM_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
           echo "ARM_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
 
-      # Step 5: Export TF_VAR variables to match variables.tf exactly
+      # Step 5: Export TF_VAR_* variables for Terraform input variables
       - name: Export Terraform input variables (TF_VAR_*)
         run: |
-          # Match your variables.tf exactly (case-sensitive)
-          echo "TF_VAR_AZURE_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
-          echo "TF_VAR_ACR_CLIENT_ID=${{ secrets.ACR_CLIENT_ID }}" >> $GITHUB_ENV
-          echo "TF_VAR_ACR_CLIENT_SECRET=${{ secrets.ACR_CLIENT_SECRET }}" >> $GITHUB_ENV
-          echo "TF_VAR_ACR_TENANT_ID=${{ secrets.ACR_TENANT_ID }}" >> $GITHUB_ENV
+          echo "TF_VAR_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
+          echo "TF_VAR_client_id=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
+          echo "TF_VAR_client_secret=${{ secrets.AZURE_CLIENT_SECRET }}" >> $GITHUB_ENV
+          echo "TF_VAR_tenant_id=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
 
-          # Export any additional TF vars if needed (example for dynamic vars)
-          echo "TF_VAR_resource_group_name=${{ secrets.RESOURCE_GROUP_NAME }}" >> $GITHUB_ENV
-          echo "TF_VAR_storage_account_name=${{ secrets.STORAGE_ACCOUNT_NAME }}" >> $GITHUB_ENV
-          echo "TF_VAR_function_name=${{ secrets.FUNCTION_NAME }}" >> $GITHUB_ENV
-          echo "TF_VAR_function_storage_account=${{ secrets.FUNCTION_STORAGE }}" >> $GITHUB_ENV
+          # Pass resource group name as TF_VAR_resource_group_name
+          echo "TF_VAR_resource_group_name=${{ env.RESOURCE_GROUP_NAME }}" >> $GITHUB_ENV
 
-      # Step 6: Break Terraform State Lock (optional)
+          # Add more TF_VAR_ variables if needed, e.g. ACR or storage account names:
+          # echo "TF_VAR_acr_client_id=${{ secrets.ACR_CLIENT_ID }}" >> $GITHUB_ENV
+          # echo "TF_VAR_storage_account_name=${{ secrets.STORAGE_ACCOUNT_NAME }}" >> $GITHUB_ENV
+
+      # Step 6: Break Terraform state lease (optional, ignore errors)
       - name: Break Terraform State Lease
         continue-on-error: true
         run: |
@@ -61,28 +65,28 @@ jobs:
             --blob-name terraform.tfstate \
             --auth-mode login || echo "Skipping lease break (no permission or no lease)"
 
-      # Step 7: Install Terraform
+      # Step 7: Setup Terraform CLI
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: 1.5.7
 
-      # Step 8: Terraform Init
+      # Step 8: Terraform init
       - name: Terraform Init
         working-directory: terraform/${{ matrix.env }}/infra
         run: terraform init
 
-      # Step 9: Terraform Format Check
+      # Step 9: Terraform format check
       - name: Terraform Format Check
         working-directory: terraform/${{ matrix.env }}/infra
         run: terraform fmt -check
 
-      # Step 10: Terraform Validate
+      # Step 10: Terraform validate
       - name: Terraform Validate
         working-directory: terraform/${{ matrix.env }}/infra
         run: terraform validate
 
-      # Step 11: Apply function infra (first)
+      # Step 11: Terraform apply for function infra only
       - name: Terraform Apply (Function Infra Only)
         if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
         working-directory: terraform/${{ matrix.env }}/infra
@@ -96,15 +100,13 @@ jobs:
       - name: Install Azure Functions Core Tools
         run: sudo npm install -g azure-functions-core-tools@4 --unsafe-perm true
 
-      # Step 13: Publish Function App Code
+      # Step 13: Publish Azure Function App code
       - name: Publish Azure Function Code
         working-directory: function-code
         run: func azure functionapp publish process-file-func --python
 
-      # Step 14: Apply remaining infra (networks, monitoring, etc.)
+      # Step 14: Terraform apply remaining infrastructure (networking, monitoring, etc.)
       - name: Terraform Apply (Remaining Infra)
         if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
         working-directory: terraform/${{ matrix.env }}/infra
         run: terraform apply -auto-approve -var-file=terraform.tfvars
-
-      
