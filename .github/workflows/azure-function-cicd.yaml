@@ -72,10 +72,15 @@ jobs:
         if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
         working-directory: terraform/${{ matrix.env }}/infra
         run: |
-          terraform apply -auto-approve -var-file=terraform.tfvars \
-            -target=azurerm_function_app.func \
-            -target=azurerm_app_service_plan.func_plan \
-            -target=azurerm_storage_account.func_storage
+         terraform apply -auto-approve \
+         -var="client_id=${{ secrets.AZURE_CLIENT_ID }}" \
+         -var="client_secret=${{ secrets.AZURE_CLIENT_SECRET }}" \
+         -var="tenant_id=${{ secrets.AZURE_TENANT_ID }}" \
+         -var="subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
+         -var-file=terraform.tfvars \
+         -target=azurerm_function_app.func \
+         -target=azurerm_app_service_plan.func_plan \
+         -target=azurerm_storage_account.func_storage
 
       # Step 5: Install Azure Functions Core Tools
       - name: Install Azure Functions Core Tools
