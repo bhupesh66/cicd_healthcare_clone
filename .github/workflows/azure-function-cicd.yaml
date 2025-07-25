@@ -28,7 +28,7 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # Step 4: Export ARM variables for Terraform authentication
+      # Step 4: Export ARM variables for Terraform (auth only)
       - name: Export ARM environment variables
         run: |
           echo "ARM_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
@@ -36,21 +36,22 @@ jobs:
           echo "ARM_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
           echo "ARM_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
 
-      # Step 5: Export all TF_VAR_* variables (case-sensitive)
+      # Step 5: Export TF_VAR variables to match variables.tf exactly
       - name: Export Terraform input variables (TF_VAR_*)
         run: |
-          # For function and infra
-          echo "TF_VAR_client_id=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
-          echo "TF_VAR_client_secret=${{ secrets.AZURE_CLIENT_SECRET }}" >> $GITHUB_ENV
-          echo "TF_VAR_tenant_id=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
-          echo "TF_VAR_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
-          
-          # For ACR (match variable names in variables.tf exactly!)
+          # Match your variables.tf exactly (case-sensitive)
+          echo "TF_VAR_AZURE_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
           echo "TF_VAR_ACR_CLIENT_ID=${{ secrets.ACR_CLIENT_ID }}" >> $GITHUB_ENV
           echo "TF_VAR_ACR_CLIENT_SECRET=${{ secrets.ACR_CLIENT_SECRET }}" >> $GITHUB_ENV
           echo "TF_VAR_ACR_TENANT_ID=${{ secrets.ACR_TENANT_ID }}" >> $GITHUB_ENV
 
-      # Step 6: Break State Lock (ignore errors if no permission)
+          # Export any additional TF vars if needed (example for dynamic vars)
+          echo "TF_VAR_resource_group_name=${{ secrets.RESOURCE_GROUP_NAME }}" >> $GITHUB_ENV
+          echo "TF_VAR_storage_account_name=${{ secrets.STORAGE_ACCOUNT_NAME }}" >> $GITHUB_ENV
+          echo "TF_VAR_function_name=${{ secrets.FUNCTION_NAME }}" >> $GITHUB_ENV
+          echo "TF_VAR_function_storage_account=${{ secrets.FUNCTION_STORAGE }}" >> $GITHUB_ENV
+
+      # Step 6: Break Terraform State Lock (optional)
       - name: Break Terraform State Lease
         continue-on-error: true
         run: |
@@ -81,7 +82,7 @@ jobs:
         working-directory: terraform/${{ matrix.env }}/infra
         run: terraform validate
 
-      # Step 11: Apply function infra (only)
+      # Step 11: Apply function infra (first)
       - name: Terraform Apply (Function Infra Only)
         if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
         working-directory: terraform/${{ matrix.env }}/infra
@@ -106,23 +107,4 @@ jobs:
         working-directory: terraform/${{ matrix.env }}/infra
         run: terraform apply -auto-approve -var-file=terraform.tfvars
 
-      # Step 15: Apply ACR image tagging logic
-      - name: Terraform Apply (New Image Tag)
-        working-directory: terraform/dev/acr
-        run: |
-          terraform init
-          terraform apply -auto-approve -lock-timeout=120s \
-            -var="resource_group_name=${{ env.RESOURCE_GROUP_NAME }}" \
-            -var="acr_name=${{ env.ACR_NAME }}" \
-            -var="location=${{ env.LOCATION }}" \
-            -var="prefix=${{ env.PREFIX }}" \
-            -var="acr_sp_username=${{ secrets.ACR_SP_USERNAME }}" \
-            -var="acr_sp_password=${{ secrets.ACR_SP_PASSWORD }}" \
-            -var="docker_image=${{ env.IMAGE_NAME }}" \
-            -var="image_tag=${{ env.IMAGE_TAG }}" \
-            -var="ACR_CLIENT_ID=${{ secrets.ACR_CLIENT_ID }}" \
-            -var="ACR_CLIENT_SECRET=${{ secrets.ACR_CLIENT_SECRET }}" \
-            -var="ACR_TENANT_ID=${{ secrets.ACR_TENANT_ID }}" \
-            -var="AZURE_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
-            -var='environment_variables={"AIRFLOW_VAR_ENV":"dev"}' \
-            -var='tags={"project":"airflow"}'
+      
