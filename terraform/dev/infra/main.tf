@@ -2,8 +2,8 @@
 
 # Resource Group
 data "azurerm_resource_group" "rg" {
-  name     = var.resource_group_name
-  
+  name = var.resource_group_name
+
 }
 
 # Log Analytics
@@ -47,12 +47,12 @@ module "storage" {
 # }
 
 module "function" {
-  source                  = "../../modules/functions"
-  resource_group_name     = data.azurerm_resource_group.rg.name
-  location                = var.location
-  function_name           = var.function_name
+  source                   = "../../modules/functions"
+  resource_group_name      = data.azurerm_resource_group.rg.name
+  location                 = var.location
+  function_name            = var.function_name
   function_storage_account = var.function_storage_account
-  log_analytics_workspace = module.log_analytics.workspace_id
+  log_analytics_workspace  = module.log_analytics.workspace_id
   # Removed servicebus_connection_string and servicebus_queue_name
 }
 

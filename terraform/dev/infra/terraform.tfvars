@@ -1,11 +1,11 @@
-resource_group_name         = "healthcare_project"
-storage_account_name        = "adlsgen2datastore"
-container_name              = "rawdata"
-servicebus_namespace        = "sb-datapipeline"
-servicebus_queue            = "airflowqueue"
-function_name               = "process-file-func"
-function_storage_account    = "funcstoragedatapipeline"
+resource_group_name          = "healthcare_project"
+storage_account_name         = "adlsgen2datastore"
+container_name               = "rawdata"
+servicebus_namespace         = "sb-datapipeline"
+servicebus_queue             = "airflowqueue"
+function_name                = "process-file-func"
+function_storage_account     = "funcstoragedatapipeline"
 log_analytics_workspace_name = "law-central"
-location="Sweden Central"
+location                     = "Sweden Central"
 
-  
+
