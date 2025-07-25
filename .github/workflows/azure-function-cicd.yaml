@@ -74,10 +74,8 @@ jobs:
         if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
         working-directory: terraform/${{ matrix.env }}/infra
         run: |
-          terraform apply -auto-approve -var-file=terraform.tfvars -var="deploy_eventgrid=false" \
-            -target=module.function.azurerm_function_app.func \
-            -target=module.function.azurerm_app_service_plan.plan \
-            -target=module.function.azurerm_storage_account.function_sa
+          terraform apply -auto-approve -var-file=terraform.tfvars
+            
 
       - name: Install Azure Functions Core Tools
         run: sudo npm install -g azure-functions-core-tools@4 --unsafe-perm true
@@ -86,8 +84,4 @@ jobs:
         working-directory: function-code
         run: func azure functionapp publish process-file-func --python
 
-      # Step 2: Deploy EventGrid and Remaining Infra
-      - name: Terraform Apply (Remaining Infrastructure)
-        if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
-        working-directory: terraform/${{ matrix.env }}/infra
-        run: terraform apply -auto-approve -var-file=terraform.tfvars -var="deploy_eventgrid=true"
+     

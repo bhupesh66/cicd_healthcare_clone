@@ -65,7 +65,7 @@ module "function" {
 #   function_endpoint       = module.function.function_endpoint
 #   function_id             = module.function.function_id
 #   log_analytics_workspace = module.log_analytics.workspace_id
-#   count                   = var.deploy_eventgrid ? 1 : 0
+
 # }
 
 
