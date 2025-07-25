@@ -10,7 +10,7 @@ variable "servicebus_namespace" {}
 variable "servicebus_queue" { default = "airflowqueue" }
 
 variable "function_name" {}
-variable "function_storage_account" { type        = string}
+variable "function_storage_account" { type = string }
 
 variable "AZURE_SUBSCRIPTION_ID" {
   type        = string
