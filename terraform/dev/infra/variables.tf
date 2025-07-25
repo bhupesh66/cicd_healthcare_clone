@@ -31,9 +31,13 @@ variable "ACR_TENANT_ID" {
   type        = string
   description = "Azure Tenant ID"
 }
+variable "deploy_eventgrid" {
+  type    = bool
+  default = true
+}
 
 
-# OR
+
 
 
 
