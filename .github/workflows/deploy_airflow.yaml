@@ -3,7 +3,7 @@ name: Deploy Airflow to Azure
 on:
   push:
     branches:
-      - dev
+      - main
 
 env:
   IMAGE_NAME: airflow-custom
