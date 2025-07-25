@@ -14,56 +14,74 @@ jobs:
         env: [dev]
 
     steps:
+      # Step 1: Checkout Code
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      # Step 2: Show directory structure for debugging
       - name: List terraform folder contents
         run: ls -la terraform/${{ matrix.env }}/infra
 
+      # Step 3: Login to Azure
       - name: Azure Login 
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Export ARM environment variables for Terraform
+      # Step 4: Export ARM variables for Terraform authentication
+      - name: Export ARM environment variables
         run: |
           echo "ARM_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
           echo "ARM_CLIENT_SECRET=${{ secrets.AZURE_CLIENT_SECRET }}" >> $GITHUB_ENV
           echo "ARM_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
           echo "ARM_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
 
+      # Step 5: Export all TF_VAR_* variables (case-sensitive)
       - name: Export Terraform input variables (TF_VAR_*)
         run: |
+          # For function and infra
           echo "TF_VAR_client_id=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
           echo "TF_VAR_client_secret=${{ secrets.AZURE_CLIENT_SECRET }}" >> $GITHUB_ENV
           echo "TF_VAR_tenant_id=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
           echo "TF_VAR_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
+          
+          # For ACR (match variable names in variables.tf exactly!)
+          echo "TF_VAR_ACR_CLIENT_ID=${{ secrets.ACR_CLIENT_ID }}" >> $GITHUB_ENV
+          echo "TF_VAR_ACR_CLIENT_SECRET=${{ secrets.ACR_CLIENT_SECRET }}" >> $GITHUB_ENV
+          echo "TF_VAR_ACR_TENANT_ID=${{ secrets.ACR_TENANT_ID }}" >> $GITHUB_ENV
 
+      # Step 6: Break State Lock (ignore errors if no permission)
       - name: Break Terraform State Lease
+        continue-on-error: true
         run: |
           az storage blob lease break \
             --account-name tfstate147025af \
             --container-name tfstate \
             --blob-name terraform.tfstate \
-            --auth-mode login || echo "No lease to break"
+            --auth-mode login || echo "Skipping lease break (no permission or no lease)"
 
+      # Step 7: Install Terraform
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: 1.5.7
 
+      # Step 8: Terraform Init
       - name: Terraform Init
         working-directory: terraform/${{ matrix.env }}/infra
         run: terraform init
 
+      # Step 9: Terraform Format Check
       - name: Terraform Format Check
         working-directory: terraform/${{ matrix.env }}/infra
         run: terraform fmt -check
 
+      # Step 10: Terraform Validate
       - name: Terraform Validate
         working-directory: terraform/${{ matrix.env }}/infra
         run: terraform validate
 
+      # Step 11: Apply function infra (only)
       - name: Terraform Apply (Function Infra Only)
         if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
         working-directory: terraform/${{ matrix.env }}/infra
@@ -73,14 +91,38 @@ jobs:
             -target=azurerm_app_service_plan.func_plan \
             -target=azurerm_storage_account.func_storage
 
+      # Step 12: Install Azure Functions Core Tools
       - name: Install Azure Functions Core Tools
         run: sudo npm install -g azure-functions-core-tools@4 --unsafe-perm true
 
+      # Step 13: Publish Function App Code
       - name: Publish Azure Function Code
         working-directory: function-code
         run: func azure functionapp publish process-file-func --python
 
+      # Step 14: Apply remaining infra (networks, monitoring, etc.)
       - name: Terraform Apply (Remaining Infra)
         if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
         working-directory: terraform/${{ matrix.env }}/infra
         run: terraform apply -auto-approve -var-file=terraform.tfvars
+
+      # Step 15: Apply ACR image tagging logic
+      - name: Terraform Apply (New Image Tag)
+        working-directory: terraform/dev/acr
+        run: |
+          terraform init
+          terraform apply -auto-approve -lock-timeout=120s \
+            -var="resource_group_name=${{ env.RESOURCE_GROUP_NAME }}" \
+            -var="acr_name=${{ env.ACR_NAME }}" \
+            -var="location=${{ env.LOCATION }}" \
+            -var="prefix=${{ env.PREFIX }}" \
+            -var="acr_sp_username=${{ secrets.ACR_SP_USERNAME }}" \
+            -var="acr_sp_password=${{ secrets.ACR_SP_PASSWORD }}" \
+            -var="docker_image=${{ env.IMAGE_NAME }}" \
+            -var="image_tag=${{ env.IMAGE_TAG }}" \
+            -var="ACR_CLIENT_ID=${{ secrets.ACR_CLIENT_ID }}" \
+            -var="ACR_CLIENT_SECRET=${{ secrets.ACR_CLIENT_SECRET }}" \
+            -var="ACR_TENANT_ID=${{ secrets.ACR_TENANT_ID }}" \
+            -var="AZURE_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
+            -var='environment_variables={"AIRFLOW_VAR_ENV":"dev"}' \
+            -var='tags={"project":"airflow"}'
