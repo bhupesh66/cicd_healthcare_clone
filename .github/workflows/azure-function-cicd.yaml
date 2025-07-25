@@ -59,7 +59,7 @@ jobs:
 
       - name: Terraform Init
         working-directory: terraform/${{ matrix.env }}/infra
-        run: terraform init
+        run: terraform init -reconfigure
 
       - name: Terraform Format Check
         working-directory: terraform/${{ matrix.env }}/infra
