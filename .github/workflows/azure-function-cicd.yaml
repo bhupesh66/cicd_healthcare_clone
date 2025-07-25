@@ -73,6 +73,7 @@ jobs:
         if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
         working-directory: terraform/${{ matrix.env }}/infra
         run: |
+          -var="deploy_eventgrid=false" \
           terraform apply -auto-approve -var-file=terraform.tfvars \
             -target=module.function.azurerm_function_app.func \
             -target=module.function.azurerm_app_service_plan.plan \
@@ -89,4 +90,5 @@ jobs:
       - name: Terraform Apply (Remaining Infrastructure)
         if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
         working-directory: terraform/${{ matrix.env }}/infra
-        run: terraform apply -auto-approve -var-file=terraform.tfvars
+        run: terraform apply -auto-approve -var-file=terraform.tfvars \
+             -var="deploy_eventgrid=true"
