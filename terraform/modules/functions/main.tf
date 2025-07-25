@@ -116,8 +116,10 @@ resource "azurerm_monitor_diagnostic_setting" "func_diagnostics" {
 }
 
 output "function_endpoint" {
-  value = azurerm_function_app.func.default_hostname
+  value       = try(azurerm_function_app.func.default_hostname, "")
+  description = "Function App endpoint (empty until function is deployed)"
 }
+
 
 output "function_id" {
   value = "${azurerm_function_app.func.id}/functions/HttpTrigger1"
