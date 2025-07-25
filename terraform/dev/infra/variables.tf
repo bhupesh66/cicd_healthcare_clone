@@ -10,7 +10,7 @@ variable "servicebus_namespace" {}
 variable "servicebus_queue" { default = "airflowqueue" }
 
 variable "function_name" {}
-variable "function_storage_account" {}
+variable "function_storage_account" { type        = string}
 
 variable "AZURE_SUBSCRIPTION_ID" {
   type        = string
@@ -30,4 +30,14 @@ variable "ACR_CLIENT_SECRET" {
 variable "ACR_TENANT_ID" {
   type        = string
   description = "Azure Tenant ID"
+}
+
+variable "function_endpoint" {
+  type = string
+}
+
+# OR
+
+variable "function_id" {
+  type = string
 }
