@@ -59,7 +59,7 @@ jobs:
 
       - name: Terraform Init
         working-directory: terraform/${{ matrix.env }}/infra
-        run: terraform init -reconfigure
+        run: terraform init
 
       - name: Terraform Format Check
         working-directory: terraform/${{ matrix.env }}/infra
@@ -69,13 +69,15 @@ jobs:
         working-directory: terraform/${{ matrix.env }}/infra
         run: terraform validate
 
-      # Step 1: Deploy only Function + Storage (no EventGrid yet)
+      # Step 1: Deploy Function Infra Only (no EventGrid)
       - name: Terraform Apply (Function Infra Only)
         if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
         working-directory: terraform/${{ matrix.env }}/infra
         run: |
-          terraform apply -auto-approve -var-file=terraform.tfvars
-            
+          terraform apply -auto-approve -var-file=terraform.tfvars 
+            -target=module.function.azurerm_function_app.func \
+            -target=module.function.azurerm_app_service_plan.plan \
+            -target=module.function.azurerm_storage_account.function_sa
 
       - name: Install Azure Functions Core Tools
         run: sudo npm install -g azure-functions-core-tools@4 --unsafe-perm true
@@ -84,4 +86,8 @@ jobs:
         working-directory: function-code
         run: func azure functionapp publish process-file-func --python
 
-     
+      # Step 2: Deploy EventGrid + Remaining Infrastructure
+      - name: Terraform Apply (Remaining Infrastructure)
+        if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
+        working-directory: terraform/${{ matrix.env }}/infra
+        run: terraform apply -auto-approve -var-file=terraform.tfvars 

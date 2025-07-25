@@ -32,14 +32,9 @@ variable "ACR_TENANT_ID" {
   description = "Azure Tenant ID"
 }
 
-variable "function_endpoint" {
-  type = string
-}
 
 # OR
 
-variable "function_id" {
-  type = string
-}
+
 
 

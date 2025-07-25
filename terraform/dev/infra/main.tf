@@ -57,16 +57,16 @@ module "function" {
 }
 
 
-# module "eventgrid" {
-#   source                  = "../../modules/eventgrid"
-#   resource_group_name     = data.azurerm_resource_group.rg.name
-#   location                = var.location
-#   storage_account_id      = module.storage.storage_account_id
-#   function_endpoint       = module.function.function_endpoint
-#   function_id             = module.function.function_id
-#   log_analytics_workspace = module.log_analytics.workspace_id
+module "eventgrid" {
+  source                  = "../../modules/eventgrid"
+  resource_group_name     = data.azurerm_resource_group.rg.name
+  location                = var.location
+  storage_account_id      = module.storage.storage_account_id
+  function_endpoint       = module.function.function_endpoint
+  function_id             = module.function.function_id
+  log_analytics_workspace = module.log_analytics.workspace_id
 
-# }
+}
 
 
 
