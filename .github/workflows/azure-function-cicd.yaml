@@ -90,9 +90,9 @@ jobs:
         working-directory: terraform/${{ matrix.env }}/infra
         run: |
           terraform apply -auto-approve -var-file=terraform.tfvars \
-            -target=azurerm_function_app.func \
-            -target=azurerm_app_service_plan.func_plan \
-            -target=azurerm_storage_account.func_storage
+           -target=module.function.azurerm_function_app.func \
+          -target=module.function.azurerm_app_service_plan.plan \
+          -target=module.function.azurerm_storage_account.function_sa
 
       # Step 12: Install Azure Functions Core Tools
       - name: Install Azure Functions Core Tools
