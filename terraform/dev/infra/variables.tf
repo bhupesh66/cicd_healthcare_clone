@@ -41,8 +41,5 @@ variable "function_endpoint" {
 variable "function_id" {
   type = string
 }
-variable "deploy_eventgrid" {
-  type    = bool
-  default = true
-}
+
 
