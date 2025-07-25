@@ -98,6 +98,10 @@ resource "azurerm_function_app" "func" {
   version                    = "~4"
   os_type                    = "linux"
 
+  site_config {
+    linux_fx_version = "python|3.9"  # Set desired Python version here
+  }
+
   app_settings = {
     FUNCTIONS_WORKER_RUNTIME = "python"
   }
