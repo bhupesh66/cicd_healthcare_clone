@@ -69,15 +69,14 @@ jobs:
         working-directory: terraform/${{ matrix.env }}/infra
         run: terraform validate
 
+      # Step 1: Deploy only Function + Storage (no EventGrid yet)
       - name: Terraform Apply (Function Infra Only)
         if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
         working-directory: terraform/${{ matrix.env }}/infra
         run: |
-          -var="deploy_eventgrid=false" \
-          terraform apply -auto-approve -var-file=terraform.tfvars \
+          terraform apply -auto-approve -var-file=terraform.tfvars -var="deploy_eventgrid=false" \
             -target=module.function.azurerm_function_app.func \
             -target=module.function.azurerm_app_service_plan.plan \
-            -target=module.function.azurerm_function_app.func \
             -target=module.function.azurerm_storage_account.function_sa
 
       - name: Install Azure Functions Core Tools
@@ -87,8 +86,8 @@ jobs:
         working-directory: function-code
         run: func azure functionapp publish process-file-func --python
 
+      # Step 2: Deploy EventGrid and Remaining Infra
       - name: Terraform Apply (Remaining Infrastructure)
         if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
         working-directory: terraform/${{ matrix.env }}/infra
-        run: terraform apply -auto-approve -var-file=terraform.tfvars \
-             -var="deploy_eventgrid=true"
+        run: terraform apply -auto-approve -var-file=terraform.tfvars -var="deploy_eventgrid=true"
