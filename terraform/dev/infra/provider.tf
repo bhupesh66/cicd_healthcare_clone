@@ -1,0 +1,31 @@
+terraform {
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~> 3.0"
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.0"
+    }
+  }
+
+  required_version = ">= 1.3"
+}
+
+
+provider "azurerm" {
+  features {}
+
+  # subscription_id = jsondecode(var.azure_credentials).subscriptionId
+  # client_id       = jsondecode(var.azure_credentials).clientId
+  # client_secret   = jsondecode(var.azure_credentials).clientSecret
+  # tenant_id       = jsondecode(var.azure_credentials).tenantId
+
+  subscription_id = var.AZURE_SUBSCRIPTION_ID
+  client_id       = var.ACR_CLIENT_ID
+  client_secret   = var.ACR_CLIENT_SECRET
+  tenant_id       = var.ACR_TENANT_ID
+
+  skip_provider_registration = true
+}

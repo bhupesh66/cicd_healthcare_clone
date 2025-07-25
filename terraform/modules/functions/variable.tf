@@ -10,12 +10,12 @@ variable "location" {
 variable "function_name" {
   type = string
 }
-variable "servicebus_connection_string" {
-  type = string
-}
-variable "servicebus_queue_name" {
-  type = string
-}
+# variable "servicebus_connection_string" {
+#   type = string
+# }
+# variable "servicebus_queue_name" {
+#   type = string
+# }
 variable "log_analytics_workspace" {
   type = string
 }

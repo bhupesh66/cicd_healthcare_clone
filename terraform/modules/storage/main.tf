@@ -1,5 +1,11 @@
+resource "random_id" "suffix" {
+  byte_length = 4
+}
+
+
 resource "azurerm_storage_account" "storage" {
-  name                     = var.storage_account_name
+  name                     = "${substr(var.storage_account_name, 0, 12)}${random_id.suffix.hex}"
+
   resource_group_name      = var.resource_group_name
   location                 = var.location
   account_tier             = "Standard"
@@ -14,20 +20,7 @@ resource "azurerm_storage_container" "container" {
 }
 
 # Send diagnostics to Log Analytics
-resource "azurerm_monitor_diagnostic_setting" "storage_diagnostics" {
-  name                       = "storage-logs"
-  target_resource_id         = azurerm_storage_account.storage.id
-  log_analytics_workspace_id = var.log_analytics_workspace
 
-  enabled_log {
-    category = "StorageRead"
-  }
-
-  metric {
-    category = "Transaction"
-    enabled  = true
-  }
-}
 
 output "storage_account_id" {
   value = azurerm_storage_account.storage.id
