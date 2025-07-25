@@ -76,6 +76,7 @@ jobs:
           terraform apply -auto-approve -var-file=terraform.tfvars \
             -target=module.function.azurerm_function_app.func \
             -target=module.function.azurerm_app_service_plan.plan \
+            -target=module.function.azurerm_function_app.func \
             -target=module.function.azurerm_storage_account.function_sa
 
       - name: Install Azure Functions Core Tools
