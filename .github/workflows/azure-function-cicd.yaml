@@ -20,19 +20,25 @@ jobs:
       - name: List terraform folder contents
         run: ls -la terraform/${{ matrix.env }}/infra
 
-      # Login to Azure CLI (needed for az commands, optional here but good for az CLI calls)
-      - name: Azure Login
+      - name: Azure Login 
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # Set environment variables for Terraform Service Principal auth
       - name: Export ARM environment variables for Terraform
         run: |
           echo "ARM_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
           echo "ARM_CLIENT_SECRET=${{ secrets.AZURE_CLIENT_SECRET }}" >> $GITHUB_ENV
           echo "ARM_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
           echo "ARM_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
+
+      - name: Break Terraform State Lease
+        run: |
+          az storage blob lease break \
+            --account-name tfstate147025af \
+            --container-name tfstate \
+            --blob-name terraform.tfstate \
+            --auth-mode login || echo "No lease to break"
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
@@ -44,7 +50,17 @@ jobs:
         working-directory: terraform/${{ matrix.env }}/infra
         run: terraform init
 
-      # Step 2: Terraform Apply for Function Infra Only
+      # Step 2: Terraform Format Check
+      - name: Terraform Format Check
+        working-directory: terraform/${{ matrix.env }}/infra
+        run: terraform fmt -check
+
+      # Step 3: Terraform Validate
+      - name: Terraform Validate
+        working-directory: terraform/${{ matrix.env }}/infra
+        run: terraform validate
+
+      # Step 4: Terraform Apply (Function Infra Only)
       - name: Terraform Apply (Function Infra Only)
         if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
         working-directory: terraform/${{ matrix.env }}/infra
@@ -52,21 +68,30 @@ jobs:
           terraform apply -auto-approve -var-file=terraform.tfvars \
             -target=azurerm_function_app.func \
             -target=azurerm_app_service_plan.func_plan \
-            -target=azurerm_storage_account.func_storage
+            -target=azurerm_storage_account.func_storage \
+            -var "azure_client_id=${{ secrets.AZURE_CLIENT_ID }}" \
+            -var "azure_client_secret=${{ secrets.AZURE_CLIENT_SECRET }}" \
+            -var "azure_tenant_id=${{ secrets.AZURE_TENANT_ID }}" \
+            -var "azure_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}"
 
-      # Step 3: Install Azure Functions Core Tools
+      # Step 5: Install Azure Functions Core Tools
       - name: Install Azure Functions Core Tools
         run: |
           sudo npm install -g azure-functions-core-tools@4 --unsafe-perm true
 
-      # Step 4: Publish Azure Function Code
+      # Step 6: Publish Azure Function Code
       - name: Publish Azure Function Code
         working-directory: function-code
         run: |
           func azure functionapp publish process-file-func --python
 
-      # Step 5: Terraform Apply for Remaining Infra (Event Grid etc)
+      # Step 7: Terraform Apply (Remaining Infra)
       - name: Terraform Apply (Remaining Infra)
         if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
         working-directory: terraform/${{ matrix.env }}/infra
-        run: terraform apply -auto-approve -var-file=terraform.tfvars
+        run: |
+          terraform apply -auto-approve -var-file=terraform.tfvars \
+            -var "azure_client_id=${{ secrets.AZURE_CLIENT_ID }}" \
+            -var "azure_client_secret=${{ secrets.AZURE_CLIENT_SECRET }}" \
+            -var "azure_tenant_id=${{ secrets.AZURE_TENANT_ID }}" \
+            -var "azure_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}"
