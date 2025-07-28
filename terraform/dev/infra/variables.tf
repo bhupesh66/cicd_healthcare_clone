@@ -1,7 +1,7 @@
 variable "resource_group_name" {}
 variable "location" { default = "Sweden Central" }
 
-variable "log_analytics_workspace_name" { default = "central-law" }
+variable "log_analytics_workspace_name" {}
 
 variable "storage_account_name" {}
 
