@@ -69,6 +69,7 @@ module "eventgrid" {
   log_analytics_workspace = module.log_analytics.workspace_id
   count                   = var.deploy_eventgrid ? 1 : 0
 
+
 }
 
 

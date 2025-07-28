@@ -20,19 +20,19 @@ resource "azurerm_storage_container" "containers" {
 }
 
 # Only create diagnostics if a workspace is provided
-resource "azurerm_monitor_diagnostic_setting" "storage_diag" {
-  name                       = "storage-diagnostics"
-  target_resource_id         = azurerm_storage_account.storage.id
-  log_analytics_workspace_id = var.log_analytics_workspace
+# resource "azurerm_monitor_diagnostic_setting" "storage_diag" {
+#   name                       = "storage-diagnostics"
+#   target_resource_id         = azurerm_storage_account.storage.id
+#   log_analytics_workspace_id = var.log_analytics_workspace
 
 
-  metric {
-    category = "Transaction"
-    enabled  = true
-  }
+#   metric {
+#     category = "Transaction"
+#     enabled  = true
+#   }
 
-  # Add other categories if needed here
-}
+#   # Add other categories if needed here
+# }
 
 
 # Outputs for reuse
