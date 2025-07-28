@@ -13,14 +13,24 @@ resource "azurerm_storage_account" "storage" {
 
 # Create multiple containers dynamically
 resource "azurerm_storage_container" "containers" {
-  for_each = toset(var.container_names) # Now supports multiple containers
+  for_each = toset(var.container_name)
   name                  = each.value
   storage_account_name  = azurerm_storage_account.storage.name
   container_access_type = "private"
 }
 
+# Only create diagnostics if a workspace is provided
+resource "azurerm_monitor_diagnostic_setting" "storage_diag" {
+  count                      = var.log_analytics_workspace != null ? 1 : 0
+  name                       = "storage-diagnostics"
+  target_resource_id         = azurerm_storage_account.storage.id
+  log_analytics_workspace_id = var.log_analytics_workspace
 
-
+  metric {
+    category = "Transaction"
+    enabled  = true
+  }
+}
 
 # Outputs for reuse
 output "storage_account_id" {

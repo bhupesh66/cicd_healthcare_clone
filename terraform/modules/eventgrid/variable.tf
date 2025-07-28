@@ -9,3 +9,9 @@ variable "log_analytics_workspace" {
 }
 variable "resource_group_name" {}
 variable "location" {}
+
+variable "container_name" {
+  type        = string
+  description = "Name of the storage container to filter on"
+}
+
