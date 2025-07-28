@@ -27,7 +27,7 @@ resource "azurerm_eventgrid_event_subscription" "file_sub" {
 
 # Diagnostics (remove unsupported StorageRead logs)
 resource "azurerm_monitor_diagnostic_setting" "eventgrid_diagnostics" {
-  name                       = "eventgrid-logs"
+  name                       = "eventgrid-subscription-logs"
   target_resource_id         = azurerm_eventgrid_event_subscription.file_sub.id
   log_analytics_workspace_id = var.log_analytics_workspace
 
