@@ -32,7 +32,7 @@ resource "azurerm_monitor_diagnostic_setting" "eventgrid_diagnostics" {
   log_analytics_workspace_id = var.log_analytics_workspace
 
   metric {
-    category = "Transaction"
-    enabled  = true
-  }
+  category = "AllMetrics"
+  enabled  = true
+}
 }
