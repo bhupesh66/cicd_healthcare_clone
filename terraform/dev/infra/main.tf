@@ -16,13 +16,14 @@ module "log_analytics" {
 
 # ADLS Gen2
 module "storage" {
-  source                  = "../../modules/storage"
-  resource_group_name     = data.azurerm_resource_group.rg.name
-  location                = var.location
-  storage_account_name    = var.storage_account_name
-  container_name          = var.container_name
-  log_analytics_workspace = module.log_analytics.workspace_id
+  source               = "../../modules/storage"
+  resource_group_name  = data.azurerm_resource_group.rg.name
+  location             = var.location
+  storage_account_name = var.storage_account_name
+  container_names      = ["incoming", "processed", "archive"] # create 3 containers
+
 }
+
 
 # Service Bus
 # module "servicebus" {
@@ -63,6 +64,7 @@ module "eventgrid" {
   location                = var.location
   storage_account_id      = module.storage.storage_account_id
   function_endpoint       = module.function.function_endpoint
+  container_name          = module.storage.containers["incoming"]
   function_id             = module.function.function_id
   log_analytics_workspace = module.log_analytics.workspace_id
   count                   = var.deploy_eventgrid ? 1 : 0
