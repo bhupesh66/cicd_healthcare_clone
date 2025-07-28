@@ -10,10 +10,20 @@ resource "azurerm_eventgrid_event_subscription" "file_sub" {
   event_delivery_schema = "EventGridSchema"
   included_event_types  = ["Microsoft.Storage.BlobCreated"]
 
+  subject_filter {
+    subject_begins_with = "/blobServices/default/containers/${var.container_name}/blobs/incoming/dassscrub/"
+    subject_ends_with   = ".csv"
+  }
+
   azure_function_endpoint {
     function_id = var.function_id
   }
 }
+
+
+
+
+
 
 # Diagnostics (remove unsupported StorageRead logs)
 resource "azurerm_monitor_diagnostic_setting" "eventgrid_diagnostics" {

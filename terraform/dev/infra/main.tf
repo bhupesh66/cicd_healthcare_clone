@@ -16,12 +16,12 @@ module "log_analytics" {
 
 # ADLS Gen2
 module "storage" {
-  source               = "../../modules/storage"
-  resource_group_name  = data.azurerm_resource_group.rg.name
-  location             = var.location
-  storage_account_name = var.storage_account_name
-  container_names      = ["incoming", "processed", "archive"] # create 3 containers
-
+  source                  = "../../modules/storage"
+  resource_group_name     = data.azurerm_resource_group.rg.name
+  location                = var.location
+  storage_account_name    = var.storage_account_name
+  container_name          = ["incoming", "processed", "archive"] # create 3 containers
+  log_analytics_workspace = module.log_analytics.workspace_id
 }
 
 
