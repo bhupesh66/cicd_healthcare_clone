@@ -43,6 +43,12 @@ variable "container_name" {
 
 }
 
+# modules/function_app/variables.tf
+variable "storage_connection_string" {
+  description = "The connection string for the storage account used by the function."
+  type        = string
+}
+
 
 
 

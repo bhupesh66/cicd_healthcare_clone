@@ -19,4 +19,8 @@ variable "function_name" {
 variable "log_analytics_workspace" {
   type = string
 }
+variable "storage_connection_string" {
+  type        = string
+  description = "Connection string for storage account"
+}
 
