@@ -65,8 +65,9 @@ module "eventgrid" {
   storage_account_id      = module.storage.storage_account_id
   function_endpoint       = module.function.function_endpoint
   container_name          = module.storage.containers["incoming"]
-  function_id             = module.function.function_id
+  
   log_analytics_workspace = module.log_analytics.workspace_id
+  function_id = "${module.function.function_id}/functions/Trigger1"
   count                   = var.deploy_eventgrid ? 1 : 0
 
 
