@@ -17,6 +17,7 @@ variable "AZURE_SUBSCRIPTION_ID" {
   description = "Azure Subscription ID"
 }
 
+
 variable "ACR_CLIENT_ID" {
   type        = string
   description = "Azure Container Registry client ID"
