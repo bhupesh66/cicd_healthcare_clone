@@ -126,6 +126,6 @@ output "function_endpoint" {
 
 
 output "function_id" {
-  value = "${azurerm_function_app.func.id}/functions/HttpTrigger1"
+    value = azurerm_function_app.func.id
 }
 
