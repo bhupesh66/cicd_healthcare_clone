@@ -15,3 +15,7 @@ variable "container_name" {
   description = "Name of the storage container to filter on"
 }
 
+variable "function_id" {
+  type        = string
+  description = "Resource ID of the Azure Function to trigger."
+}

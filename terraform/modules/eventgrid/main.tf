@@ -1,7 +1,4 @@
-variable "function_id" {
-  type        = string
-  description = "Resource ID of the Azure Function to trigger."
-}
+
 
 resource "azurerm_eventgrid_event_subscription" "file_sub" {
   name  = "file-upload-subscription"
@@ -16,7 +13,8 @@ resource "azurerm_eventgrid_event_subscription" "file_sub" {
   }
 
   azure_function_endpoint {
-    function_id = var.function_id
+     function_id = var.function_id
+
   }
 }
 

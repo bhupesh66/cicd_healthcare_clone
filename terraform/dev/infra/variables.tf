@@ -43,6 +43,10 @@ variable "container_name" {
 
 }
 
+variable "function_id" {
+  type        = string
+  description = "Resource ID of the Azure Function to trigger."
+}
 
 
 
