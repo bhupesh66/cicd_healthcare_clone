@@ -1,2 +1,5 @@
 pandas
 requests
+azure-functions
+azure-storage-blob
+azure-servicebus
