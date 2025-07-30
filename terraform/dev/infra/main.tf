@@ -59,15 +59,15 @@ module "function" {
 
 
 module "eventgrid" {
-  source                  = "../../modules/eventgrid"
-  resource_group_name     = data.azurerm_resource_group.rg.name
-  location                = var.location
-  storage_account_id      = module.storage.storage_account_id
-  function_endpoint       = module.function.function_endpoint
-  container_name          = module.storage.containers["incoming"]
-  
+  source              = "../../modules/eventgrid"
+  resource_group_name = data.azurerm_resource_group.rg.name
+  location            = var.location
+  storage_account_id  = module.storage.storage_account_id
+  function_endpoint   = module.function.function_endpoint
+  container_name      = module.storage.containers["incoming"]
+
   log_analytics_workspace = module.log_analytics.workspace_id
-  function_id = "${module.function.function_id}/functions/Trigger1"
+  function_id             = "${module.function.function_id}/functions/Trigger1"
   count                   = var.deploy_eventgrid ? 1 : 0
 
 
