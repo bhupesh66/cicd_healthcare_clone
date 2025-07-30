@@ -7,5 +7,5 @@ function_name                = "process-file-func"
 function_storage_account     = "funcstoragedatapipeline"
 log_analytics_workspace_name = "law-central"
 location                     = "Sweden Central"
-
+storage_connection_string    = "DefaultEndpointsProtocol=https;AccountName=xyz;AccountKey=abc123==;EndpointSuffix=core.windows.net"
 
