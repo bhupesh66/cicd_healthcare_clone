@@ -16,7 +16,8 @@ resource "azurerm_eventgrid_event_subscription" "file_sub" {
   }
 
   azure_function_endpoint {
-    function_id = var.function_id
+    function_id = "${azurerm_function_app.my_function_app.id}/functions/Trigger1"
+
   }
 }
 
