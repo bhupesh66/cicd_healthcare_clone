@@ -70,11 +70,14 @@ jobs:
             -target=module.function.azurerm_app_service_plan.plan \
             -target=module.function.azurerm_storage_account.function_sa
 
-      # STEP 2: Capture function app name
+      # STEP 2: Capture function app name safely
       - name: Get Function App Name from Terraform Outputs
         id: tf_output
         working-directory: terraform/${{ matrix.env }}/infra
-        run: echo "FUNCTION_APP_NAME=$(terraform output -raw function_app_name)" >> $GITHUB_ENV
+        run: |
+          FUNCTION_APP_NAME=$(terraform output -raw function_app_name)
+          echo "FUNCTION_APP_NAME=${FUNCTION_APP_NAME}" >> $GITHUB_ENV
+        shell: bash
 
       # STEP 3: Install Azure Functions Core Tools
       - name: Install Azure Functions Core Tools
@@ -86,11 +89,16 @@ jobs:
           for i in {1..10}; do
             az functionapp show --name "$FUNCTION_APP_NAME" --resource-group "$RESOURCE_GROUP_NAME" && break || sleep 10
           done
+        env:
+          FUNCTION_APP_NAME: ${{ env.FUNCTION_APP_NAME }}
+          RESOURCE_GROUP_NAME: ${{ env.RESOURCE_GROUP_NAME }}
 
       # STEP 5: Publish Function Code
       - name: Publish Azure Function Code
         working-directory: function-code
         run: func azure functionapp publish $FUNCTION_APP_NAME --python
+        env:
+          FUNCTION_APP_NAME: ${{ env.FUNCTION_APP_NAME }}
 
       # STEP 6: Apply Remaining Infra (EventGrid etc.)
       - name: Terraform Apply (Remaining Infrastructure)
