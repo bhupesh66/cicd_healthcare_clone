@@ -69,19 +69,19 @@ jobs:
             -target=module.function.azurerm_app_service_plan.plan \
             -target=module.function.azurerm_storage_account.function_sa
 
-      - name: Debug terraform output (optional)
-        working-directory: terraform/${{ matrix.env }}/infra
-        run: terraform output -raw function_app_name || true
-
-      - name: Get Function App Name from Terraform Outputs
-        id: tf_output
+      # --- DEBUGGING STEP ---
+      - name: Debug Terraform Output
         working-directory: terraform/${{ matrix.env }}/infra
         run: |
-          FUNC_NAME=$(terraform output -raw function_app_name 2>/dev/null | head -n1)
-          echo "Function App Name is: $FUNC_NAME"
-          echo "FUNCTION_APP_NAME<<EOF" >> $GITHUB_ENV
-          echo "$FUNC_NAME" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+          terraform output
+          terraform output -raw function_app_name | cat -v
+
+      - name: Get Function App Name from Terraform Outputs
+        working-directory: terraform/${{ matrix.env }}/infra
+        run: |
+          FUNC_NAME=$(terraform output -raw function_app_name)
+          echo "Function app name from terraform output is: '$FUNC_NAME'"
+          echo "FUNCTION_APP_NAME=$FUNC_NAME" >> $GITHUB_ENV
 
       - name: Install Azure Functions Core Tools
         run: sudo npm install -g azure-functions-core-tools@4 --unsafe-perm true
