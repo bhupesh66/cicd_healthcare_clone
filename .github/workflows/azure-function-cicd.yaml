@@ -21,7 +21,8 @@ jobs:
         uses: actions/checkout@v3
 
       - name: List terraform folder contents
-        run: ls -la terraform/${{ matrix.env }}/infra
+        run: |
+          ls -la terraform/${{ matrix.env }}/infra
 
       - name: Azure Login
         uses: azure/login@v1
@@ -39,7 +40,7 @@ jobs:
         run: |
           echo "TF_VAR_AZURE_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
           echo "TF_VAR_ACR_CLIENT_ID=${{ secrets.ACR_CLIENT_ID }}" >> $GITHUB_ENV
-          echo "TF_VAR_ACR_CLIENT_SECRET=${{ secrets.ACR_SECRET }}" >> $GITHUB_ENV
+          echo "TF_VAR_ACR_CLIENT_SECRET=${{ secrets.ACR_CLIENT_SECRET }}" >> $GITHUB_ENV
           echo "TF_VAR_ACR_TENANT_ID=${{ secrets.ACR_TENANT_ID }}" >> $GITHUB_ENV
           echo "TF_VAR_resource_group_name=${{ env.RESOURCE_GROUP_NAME }}" >> $GITHUB_ENV
 
@@ -60,7 +61,7 @@ jobs:
         working-directory: terraform/${{ matrix.env }}/infra
         run: terraform validate
 
-      # STEP 1: Apply only infrastructure needed for function app
+      # STEP 1: Apply Function App Infrastructure
       - name: Terraform Apply (Function Infra Only)
         if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
         working-directory: terraform/${{ matrix.env }}/infra
@@ -70,40 +71,39 @@ jobs:
             -target=module.function.azurerm_app_service_plan.plan \
             -target=module.function.azurerm_storage_account.function_sa
 
-      # STEP 2: Save Terraform output safely
-      - name: Save terraform function app name output to file
+      # STEP 2: Capture Function App Name
+      - name: Get Function App Name from Terraform Outputs
+        id: tf_output
         working-directory: terraform/${{ matrix.env }}/infra
-        run: terraform output -raw function_app_name > func_name.txt
-
-      - name: Debug function app name output
-        run: cat terraform/${{ matrix.env }}/infra/func_name.txt | cat -v
-
-      - name: Set FUNCTION_APP_NAME env variable safely
         run: |
-          FUNC_NAME=$(head -n1 terraform/${{ matrix.env }}/infra/func_name.txt | tr -d '\r\n' | sed 's/[^a-zA-Z0-9\-_\.]//g')
+          terraform output -raw function_app_name > function_app_name.txt
+          FUNC_NAME=$(cat function_app_name.txt)
+          echo "Function app name from terraform output is: $FUNC_NAME"
           echo "FUNCTION_APP_NAME=$FUNC_NAME" >> $GITHUB_ENV
-
-      - name: Verify FUNCTION_APP_NAME is set
-        run: echo "Function app name is: $FUNCTION_APP_NAME"
 
       # STEP 3: Install Azure Functions Core Tools
       - name: Install Azure Functions Core Tools
-        run: sudo npm install -g azure-functions-core-tools@4 --unsafe-perm true
+        run: |
+          sudo npm install -g azure-functions-core-tools@4 --unsafe-perm true
 
-      # STEP 4: Wait for Function App to be fully ready
+      # STEP 4: Wait for Function App to be ready
       - name: Wait for Azure Function App to be ready
         run: |
           for i in {1..10}; do
+            echo "Checking if Azure Function App '$FUNCTION_APP_NAME' is ready (Attempt $i)..."
             az functionapp show --name "$FUNCTION_APP_NAME" --resource-group "$RESOURCE_GROUP_NAME" && break || sleep 10
           done
 
-      # STEP 5: Publish Function Code
+      # STEP 5: Publish Azure Function Code
       - name: Publish Azure Function Code
         working-directory: function-code
-        run: func azure functionapp publish $FUNCTION_APP_NAME --python
+        run: |
+          echo "Deploying code to Azure Function App: $FUNCTION_APP_NAME"
+          func azure functionapp publish $FUNCTION_APP_NAME --python
 
-      # STEP 6: Apply Remaining Infra (EventGrid etc.)
+      # STEP 6: Apply Remaining Infra (e.g., Event Grid)
       - name: Terraform Apply (Remaining Infrastructure)
         if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
         working-directory: terraform/${{ matrix.env }}/infra
-        run: terraform apply -auto-approve -var-file=terraform.tfvars -var="deploy_eventgrid=true"
+        run: |
+          terraform apply -auto-approve -var-file=terraform.tfvars -var="deploy_eventgrid=true"
