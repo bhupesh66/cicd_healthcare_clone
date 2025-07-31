@@ -68,8 +68,10 @@
 
 
 import logging
+import azure.functions as func
 import json
 
-def main(event: dict):
+def main(event: func.EventGridEvent):
     logging.info("Event received!")
-    logging.info(f"Event data: {json.dumps(event)}")
+    event_data = event.get_json()
+    logging.info(f"Event data: {json.dumps(event_data)}")
