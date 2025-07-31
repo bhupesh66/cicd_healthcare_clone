@@ -60,6 +60,7 @@ jobs:
         working-directory: terraform/${{ matrix.env }}/infra
         run: terraform validate
 
+      # STEP 1: Apply only infrastructure needed for function app
       - name: Terraform Apply (Function Infra Only)
         if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
         working-directory: terraform/${{ matrix.env }}/infra
@@ -69,33 +70,33 @@ jobs:
             -target=module.function.azurerm_app_service_plan.plan \
             -target=module.function.azurerm_storage_account.function_sa
 
-      # --- DEBUGGING STEP ---
-      - name: Debug Terraform Output
-        working-directory: terraform/${{ matrix.env }}/infra
-        run: |
-          terraform output
-          terraform output -raw function_app_name | cat -v
-
+      # STEP 2: Capture function app name properly without invalid format error
       - name: Get Function App Name from Terraform Outputs
+        id: tf_output
         working-directory: terraform/${{ matrix.env }}/infra
         run: |
-          FUNC_NAME=$(terraform output -raw function_app_name)
+          terraform output -raw function_app_name > function_app_name.txt
+          FUNC_NAME=$(cat function_app_name.txt)
           echo "Function app name from terraform output is: '$FUNC_NAME'"
           echo "FUNCTION_APP_NAME=$FUNC_NAME" >> $GITHUB_ENV
 
+      # STEP 3: Install Azure Functions Core Tools
       - name: Install Azure Functions Core Tools
         run: sudo npm install -g azure-functions-core-tools@4 --unsafe-perm true
 
+      # STEP 4: Wait for Function App to be fully ready
       - name: Wait for Azure Function App to be ready
         run: |
           for i in {1..10}; do
             az functionapp show --name "$FUNCTION_APP_NAME" --resource-group "$RESOURCE_GROUP_NAME" && break || sleep 10
           done
 
+      # STEP 5: Publish Function Code
       - name: Publish Azure Function Code
         working-directory: function-code
         run: func azure functionapp publish $FUNCTION_APP_NAME --python
 
+      # STEP 6: Apply Remaining Infra (EventGrid etc.)
       - name: Terraform Apply (Remaining Infrastructure)
         if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
         working-directory: terraform/${{ matrix.env }}/infra
