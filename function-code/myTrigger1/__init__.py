@@ -71,7 +71,15 @@ import logging
 import azure.functions as func
 import json
 
-def main(event: func.EventGridEvent):
+def main(event: func.EventGridEvent) -> None:
     logging.info("Event received!")
-    event_data = event.get_json()
-    logging.info(f"Event data: {json.dumps(event_data)}")
+    
+    try:
+        event_data = event.get_json()
+        logging.info(f"Event data: {json.dumps(event_data)}")
+    except Exception as e:
+        logging.error(f"Failed to process event: {e}")
+        raise e  # This will tell Event Grid the delivery failed
+
+    # Nothing needs to be returned for EventGrid triggers (no HTTP response),
+    # but raising an exception will mark it as failure, and no exception = success
