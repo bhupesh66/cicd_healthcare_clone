@@ -11,7 +11,7 @@ resource "azurerm_eventgrid_event_subscription" "file_sub" {
   included_event_types  = ["Microsoft.Storage.BlobCreated"]
 
   subject_filter {
-    subject_begins_with = "/blobServices/default/containers/${var.container_name}/blobs/incoming/dassscrub/"
+    subject_begins_with = "/blobServices/default/containers/${var.container_name}/blobs/dassscrub/"
     subject_ends_with   = ".csv"
   }
 
