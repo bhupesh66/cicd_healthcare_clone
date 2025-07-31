@@ -130,3 +130,6 @@ output "function_id" {
   value = "${azurerm_function_app.func.id}/functions/myTrigger1"
 }
 
+output "function_app_name" {
+  value = azurerm_function_app.func.name
+}
