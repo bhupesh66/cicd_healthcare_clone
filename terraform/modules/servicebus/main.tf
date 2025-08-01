@@ -8,6 +8,7 @@ resource "azurerm_servicebus_namespace" "sb" {
 resource "azurerm_servicebus_queue" "queue" {
   name         = var.servicebus_queue
   namespace_id = azurerm_servicebus_namespace.sb.id
+  
 }
 
 resource "azurerm_servicebus_namespace_authorization_rule" "send" {
@@ -19,14 +20,19 @@ resource "azurerm_servicebus_namespace_authorization_rule" "send" {
   manage        = false
 }
 
-# Diagnostics
+
 resource "azurerm_monitor_diagnostic_setting" "sb_diagnostics" {
   name                       = "servicebus-logs"
   target_resource_id         = azurerm_servicebus_namespace.sb.id
   log_analytics_workspace_id = var.log_analytics_workspace
 
- enabled_log {
-    category = "StorageRead"
+  # Only use supported categories
+  enabled_log {
+    category = "OperationalLogs"
+  }
+
+  enabled_log {
+    category = "RuntimeAuditLogs"
   }
 
   metric {
