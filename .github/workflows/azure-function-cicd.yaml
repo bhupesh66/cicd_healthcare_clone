@@ -17,6 +17,10 @@ jobs:
       RESOURCE_GROUP_NAME: healthcare_project
       FUNCTION_NAME: "process-file-func"
       TRIGGER_NAME: "myTrigger1"
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
 
     steps:
       - name: Checkout repository
@@ -61,8 +65,8 @@ jobs:
         working-directory: function-code
         run: func azure functionapp publish ${{ env.FUNCTION_NAME }} --python
 
-      # Deploy EventGrid After Function is Ready
-      - name: Deploy EventGrid Integration
+      # Deploy EventGrid and ServiceBus After Function is Ready
+      - name: Deploy EventGrid and ServiceBus Integration
         working-directory: terraform/${{ matrix.env }}/infra
         run: |
           terraform apply -auto-approve -var-file=terraform.tfvars \
