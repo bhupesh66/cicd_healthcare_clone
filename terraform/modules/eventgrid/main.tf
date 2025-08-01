@@ -52,6 +52,11 @@ resource "azurerm_eventgrid_event_subscription" "file_sub" {
   webhook_endpoint {
     url = "https://${var.function_endpoint}/runtime/webhooks/EventGrid?functionName=${var.function_name}"
   }
+  
+   retry_policy {
+    event_time_to_live    = 1440 # 24 hours
+    max_delivery_attempts = 30
+  }
    }
    resource "azurerm_monitor_diagnostic_setting" "eventgrid_diagnostics" {
   name                       = "eventgrid-subscription-logs"

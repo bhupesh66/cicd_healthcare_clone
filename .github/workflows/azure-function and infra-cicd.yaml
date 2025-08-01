@@ -79,9 +79,10 @@ jobs:
         working-directory: terraform/${{ matrix.env }}/infra
         run: |
           terraform apply -auto-approve -var-file=terraform.tfvars -var="deploy_eventgrid=false" \
-            -target=module.function.azurerm_function_app.func \
-            -target=module.function.azurerm_app_service_plan.plan \
-            -target=module.function.azurerm_storage_account.function_sa
+            -target=module.function \
+            -target=module.storage  \
+            -target=module.log_analytics \
+             
        
             # Validate Function Code Structure
       - name: Validate Function Code
@@ -98,11 +99,13 @@ jobs:
         working-directory: function-code
         run: func azure functionapp publish ${{ env.FUNCTION_NAME }} --python
 
-      # Step 2: Deploy EventGrid + Remaining Infrastructure
+      # Step 2: Deploy EventGrid + servicebus
       - name: Terraform Apply (Remaining Infrastructure)
         if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
         working-directory: terraform/${{ matrix.env }}/infra
-        run: terraform apply -auto-approve -var-file=terraform.tfvars -var="deploy_eventgrid=true"
+        run: terraform apply -auto-approve -var-file=terraform.tfvars -var="deploy_eventgrid=true" \
+             -target=module.eventgrid \
+             -target=module.servicebus
      
 
            # Verify Integration
