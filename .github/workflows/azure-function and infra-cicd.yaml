@@ -100,13 +100,19 @@ jobs:
         run: func azure functionapp publish ${{ env.FUNCTION_NAME }} --python
 
       # Step 2: Deploy EventGrid + servicebus
+
       - name: Terraform Apply (Remaining Infrastructure)
         if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
         working-directory: terraform/${{ matrix.env }}/infra
-        run: terraform apply -auto-approve -var-file=terraform.tfvars -var="deploy_eventgrid=true" \
-             -target=module.eventgrid \
-             -target=module.servicebus
-     
+        run: |
+                 terraform apply -auto-approve \
+                 -var-file=terraform.tfvars \
+                   -var="deploy_eventgrid=true" \
+                      -target=module.eventgrid \
+                        -target=module.servicebus          
+          
+
+
 
            # Verify Integration
       - name: Test Event Grid Integration
