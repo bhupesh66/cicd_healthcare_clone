@@ -1,14 +1,22 @@
 resource "azurerm_servicebus_namespace" "sb" {
-  name                = var.namespace_name
+  name                = var.servicebus_namespace
   location            = var.location
   resource_group_name = var.resource_group_name
   sku                 = "Standard"
 }
 
 resource "azurerm_servicebus_queue" "queue" {
-  name         = var.queue_name
+  name         = var.servicebus_queue
   namespace_id = azurerm_servicebus_namespace.sb.id
-  max_size_in_megabytes = 1024
+}
+
+resource "azurerm_servicebus_namespace_authorization_rule" "send" {
+  name          = "SendRule"
+  namespace_id  = azurerm_servicebus_namespace.sb.id
+
+  listen        = false
+  send          = true
+  manage        = false
 }
 
 # Diagnostics
@@ -27,6 +35,11 @@ resource "azurerm_monitor_diagnostic_setting" "sb_diagnostics" {
   }
 }
 
-output "connection_string" {
-  value = azurerm_servicebus_namespace.sb.default_primary_connection_string
+output "servicebus_connection_string" {
+  value     = azurerm_servicebus_namespace_authorization_rule.send.primary_connection_string
+  sensitive = true
+}
+
+output "servicebus_queue_name" {
+  value = azurerm_servicebus_queue.queue.name
 }

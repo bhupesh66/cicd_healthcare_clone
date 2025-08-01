@@ -105,8 +105,11 @@ resource "azurerm_function_app" "func" {
   app_settings = {
     FUNCTIONS_WORKER_RUNTIME = "python"
     STORAGE_CONN             = var.storage_connection_string
+     SERVICEBUS_CONN          = var.servicebus_connection_string
+     SERVICEBUS_QUEUE_NAME    = var.servicebus_queue_name
   }
 }
+
 
 # Diagnostics (removed unsupported StorageRead category)
 resource "azurerm_monitor_diagnostic_setting" "func_diagnostics" {
@@ -127,6 +130,6 @@ output "function_endpoint" {
 
 
 output "function_id" {
-  value = "${azurerm_function_app.func.id}/functions/myTrigger1"
+  value = azurerm_function_app.func.id # Just the app ID, no function name
 }
 

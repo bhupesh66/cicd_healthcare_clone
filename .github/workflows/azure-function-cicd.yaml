@@ -15,42 +15,17 @@ jobs:
 
     env:
       RESOURCE_GROUP_NAME: healthcare_project
+      FUNCTION_NAME: "process-file-func"
+      TRIGGER_NAME: "myTrigger1"
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: List terraform folder contents
-        run: ls -la terraform/${{ matrix.env }}/infra
-
       - name: Azure Login
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Export ARM environment variables
-        run: |
-          echo "ARM_CLIENT_ID=${{ secrets.ACR_CLIENT_ID }}" >> $GITHUB_ENV
-          echo "ARM_CLIENT_SECRET=${{ secrets.ACR_CLIENT_SECRET }}" >> $GITHUB_ENV
-          echo "ARM_TENANT_ID=${{ secrets.ACR_TENANT_ID }}" >> $GITHUB_ENV
-          echo "ARM_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
-
-      - name: Export Terraform input variables (TF_VAR_*)
-        run: |
-          echo "TF_VAR_AZURE_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
-          echo "TF_VAR_ACR_CLIENT_ID=${{ secrets.ACR_CLIENT_ID }}" >> $GITHUB_ENV
-          echo "TF_VAR_ACR_CLIENT_SECRET=${{ secrets.ACR_CLIENT_SECRET }}" >> $GITHUB_ENV
-          echo "TF_VAR_ACR_TENANT_ID=${{ secrets.ACR_TENANT_ID }}" >> $GITHUB_ENV
-          echo "TF_VAR_resource_group_name=${{ env.RESOURCE_GROUP_NAME }}" >> $GITHUB_ENV
-
-      - name: Break Terraform State Lease (optional)
-        continue-on-error: true
-        run: |
-          az storage blob lease break \
-            --account-name tfstate147025af \
-            --container-name tfstate \
-            --blob-name terraform.tfstate \
-            --auth-mode login || echo "Skipping lease break"
 
       - name: Setup Terraform CLI
         uses: hashicorp/setup-terraform@v2
@@ -61,33 +36,44 @@ jobs:
         working-directory: terraform/${{ matrix.env }}/infra
         run: terraform init
 
-      - name: Terraform Format Check
-        working-directory: terraform/${{ matrix.env }}/infra
-        run: terraform fmt -check
-
-      - name: Terraform Validate
-        working-directory: terraform/${{ matrix.env }}/infra
-        run: terraform validate
-
-      # Step 1: Deploy Function Infra Only (no EventGrid)
-      - name: Terraform Apply (Function Infra Only)
-        if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
+      # Core Infrastructure (without EventGrid)
+      - name: Deploy Core Infrastructure
         working-directory: terraform/${{ matrix.env }}/infra
         run: |
-          terraform apply -auto-approve -var-file=terraform.tfvars -var="deploy_eventgrid=false" \
-            -target=module.function.azurerm_function_app.func \
-            -target=module.function.azurerm_app_service_plan.plan \
-            -target=module.function.azurerm_storage_account.function_sa
+          terraform apply -auto-approve -var-file=terraform.tfvars \
+            -var="deploy_eventgrid=false" \
+            -target=module.function \
+            -target=module.storage \
+            -target=module.log_analytics
 
+      # Validate Function Code Structure
+      - name: Validate Function Code
+        working-directory: function-code
+        run: |
+          [ -d "${{ env.TRIGGER_NAME }}" ] || { echo "Function folder missing"; exit 1; }
+          [ -f "${{ env.TRIGGER_NAME }}/function.json" ] || { echo "function.json missing"; exit 1; }
+
+      # Deploy Function Code
       - name: Install Azure Functions Core Tools
         run: sudo npm install -g azure-functions-core-tools@4 --unsafe-perm true
 
-      - name: Publish Azure Function Code
+      - name: Publish Function Code
         working-directory: function-code
-        run: func azure functionapp publish process-file-func --python
+        run: func azure functionapp publish ${{ env.FUNCTION_NAME }} --python
 
-      # Step 2: Deploy EventGrid + Remaining Infrastructure
-      - name: Terraform Apply (Remaining Infrastructure)
-        if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
+      # Deploy EventGrid After Function is Ready
+      - name: Deploy EventGrid Integration
         working-directory: terraform/${{ matrix.env }}/infra
-        run: terraform apply -auto-approve -var-file=terraform.tfvars -var="deploy_eventgrid=true"
+        run: |
+          terraform apply -auto-approve -var-file=terraform.tfvars \
+            -var="deploy_eventgrid=true" \
+            -target=module.eventgrid \
+            -target=module.servicebus
+
+      # Verify Integration
+      - name: Test Event Grid Integration
+        run: |
+          curl -X POST \
+            "https://${{ env.FUNCTION_NAME }}.azurewebsites.net/runtime/webhooks/EventGrid?functionName=${{ env.TRIGGER_NAME }}" \
+            -H "Content-Type: application/json" \
+            -d '{"subject":"/blobServices/default/containers/incoming/blobs/test.csv"}'

@@ -24,3 +24,12 @@ variable "storage_connection_string" {
   description = "Connection string for storage account"
 }
 
+variable "servicebus_connection_string" {
+  type        = string
+  description = "Connection string to Service Bus namespace"
+}
+
+variable "servicebus_queue_name" {
+  type        = string
+  description = "Service Bus queue name"
+}
