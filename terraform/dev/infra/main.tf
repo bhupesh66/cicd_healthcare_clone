@@ -30,8 +30,8 @@ module "servicebus" {
   source                  = "../../modules/servicebus"
   resource_group_name     = data.azurerm_resource_group.rg.name
   location                = var.location
-  servicebus_namespace    = var.servicebus_namespace       # ✅ matches input variable
-  servicebus_queue        = var.servicebus_queue           # ✅ matches input variable
+  servicebus_namespace    = var.servicebus_namespace # ✅ matches input variable
+  servicebus_queue        = var.servicebus_queue     # ✅ matches input variable
   log_analytics_workspace = module.log_analytics.workspace_id
 }
 
@@ -49,13 +49,13 @@ module "servicebus" {
 # }
 
 module "function" {
-  source                    = "../../modules/functions"
-  resource_group_name       = data.azurerm_resource_group.rg.name
-  location                  = var.location
-  function_name             = var.function_name
-  function_storage_account  = var.function_storage_account
-  log_analytics_workspace   = module.log_analytics.workspace_id
-  storage_connection_string = var.storage_connection_string
+  source                       = "../../modules/functions"
+  resource_group_name          = data.azurerm_resource_group.rg.name
+  location                     = var.location
+  function_name                = var.function_name
+  function_storage_account     = var.function_storage_account
+  log_analytics_workspace      = module.log_analytics.workspace_id
+  storage_connection_string    = var.storage_connection_string
   servicebus_connection_string = module.servicebus.servicebus_connection_string
   servicebus_queue_name        = module.servicebus.servicebus_queue_name
   # Removed servicebus_connection_string and servicebus_queue_name
