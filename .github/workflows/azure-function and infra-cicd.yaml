@@ -13,8 +13,6 @@ jobs:
       matrix:
         env: [dev]
 
-
-
     env:
       RESOURCE_GROUP_NAME: healthcare_project
       FUNCTION_NAME: "process-file-func"
@@ -80,17 +78,15 @@ jobs:
         run: |
           terraform apply -auto-approve -var-file=terraform.tfvars -var="deploy_eventgrid=false" \
             -target=module.function \
-            -target=module.storage  \
-            -target=module.log_analytics \
-             
-       
-            # Validate Function Code Structure
+            -target=module.storage \
+            -target=module.log_analytics
+
+      # Validate Function Code Structure
       - name: Validate Function Code
         working-directory: function-code
         run: |
           [ -d "${{ env.TRIGGER_NAME }}" ] || { echo "Function folder missing"; exit 1; }
-          [ -f "${{ env.TRIGGER_NAME }}/function.json" ] || { echo "function.json missing"; exit 1; }      
-
+          [ -f "${{ env.TRIGGER_NAME }}/function.json" ] || { echo "function.json missing"; exit 1; }
 
       - name: Install Azure Functions Core Tools
         run: sudo npm install -g azure-functions-core-tools@4 --unsafe-perm true
@@ -100,24 +96,24 @@ jobs:
         run: func azure functionapp publish ${{ env.FUNCTION_NAME }} --python
 
       # Step 2: Deploy EventGrid + servicebus
-
-      - name: Terraform Apply (Remaining Infrastructure)
-        if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
+      - name: Deploy EventGrid with Manual Validation
         working-directory: terraform/${{ matrix.env }}/infra
         run: |
-                 terraform apply -auto-approve \
-                 -var-file=terraform.tfvars \
-                   -var="deploy_eventgrid=true" \
-                      -target=module.eventgrid \
-                        -target=module.servicebus          
-          
+          # First apply with validation skipped
+          terraform apply -auto-approve \
+            -var-file=terraform.tfvars \
+            -var="deploy_eventgrid=true" \
+            -target=module.eventgrid \
+            -target=module.servicebus
 
+          # Then manually validate the endpoint
+          FUNCTION_KEY=$(az functionapp function keys list \
+            -g ${{ env.RESOURCE_GROUP_NAME }} \
+            -n ${{ env.FUNCTION_NAME }} \
+            --function-name ${{ env.TRIGGER_NAME }} \
+            --query "default" -o tsv)
 
-
-           # Verify Integration
-      - name: Test Event Grid Integration
-        run: |
           curl -X POST \
-            "https://${{ env.FUNCTION_NAME }}.azurewebsites.net/runtime/webhooks/EventGrid?functionName=${{ env.TRIGGER_NAME }}" \
+            "https://${{ env.FUNCTION_NAME }}.azurewebsites.net/runtime/webhooks/EventGrid?functionName=${{ env.TRIGGER_NAME }}&code=$FUNCTION_KEY" \
             -H "Content-Type: application/json" \
-            -d '{"subject":"/blobServices/default/containers/incoming/blobs/test.csv"}'   
+            -d '{"validationCode":"00000000-0000-0000-0000-000000000000"}'

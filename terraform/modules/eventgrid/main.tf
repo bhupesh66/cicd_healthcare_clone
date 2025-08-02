@@ -45,19 +45,22 @@ resource "azurerm_eventgrid_event_subscription" "file_sub" {
   included_event_types  = ["Microsoft.Storage.BlobCreated"]
 
   subject_filter {
-    subject_begins_with = "/blobServices/default/containers/${var.container_name}/blobs/dassscrub/"
+    subject_begins_with = "/blobServices/default/containers/${var.container_name}/blobs/"
     subject_ends_with   = ".csv"
   }
 
-  webhook_endpoint {
-    url = "https://${var.function_endpoint}/runtime/webhooks/EventGrid?functionName=${var.function_name}"
+  # Use hybrid approach with function ID and manual validation skip
+  azure_function_endpoint {
+    function_id = "${var.function_id}/functions/${var.function_name}"
   }
-  
-   retry_policy {
-    event_time_to_live    = 1440 # 24 hours
-    max_delivery_attempts = 30
+
+  # Workaround for validation - will be deprecated soon
+  lifecycle {
+    ignore_changes = [
+      azure_function_endpoint[0].function_id
+    ]
   }
-   }
+}
    resource "azurerm_monitor_diagnostic_setting" "eventgrid_diagnostics" {
   name                       = "eventgrid-subscription-logs"
   target_resource_id         = azurerm_eventgrid_event_subscription.file_sub.id
