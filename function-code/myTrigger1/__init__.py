@@ -158,7 +158,7 @@ def build_expected_path(company: str, dataset_type: str, period: str) -> str:
         "demo": "demo"
     }
     filename = f"{company}{dataset_type}{period}.csv"
-    return f"incoming/dassscrub/{folder_map[dataset_type]}/{company}/{filename}"
+    return f"dassscrub/{folder_map[dataset_type]}/{company}/{filename}"
 
 def check_blob_exists(container_client, blob_path: str) -> bool:
     """Safely checks if blob exists with detailed logging"""
