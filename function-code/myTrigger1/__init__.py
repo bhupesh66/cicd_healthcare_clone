@@ -83,8 +83,63 @@
 
     # Nothing needs to be returned for EventGrid triggers (no HTTP response),
     # but raising an exception will mark it as failure, and no exception = success
+# sure code 
 
+# import logging
+# import os
+# from azure.storage.blob import BlobServiceClient
+# import azure.functions as func
 
+# # Environment variables
+# STORAGE_CONN = os.getenv("STORAGE_CONN")
+# CONTAINER_NAME = "your-container"  # Replace with your actual container name
+
+# def main(event: func.EventGridEvent):
+#     try:
+#         logging.info('Event received: %s', event.get_json())
+#         data = event.get_json()
+#         blob_url = data['url']
+
+#         # Extract blob info
+#         blob_name = blob_url.split("/")[-1]  # e.g., xyzphar202502.csv
+#         company = blob_name[:3]              # e.g., xyz
+#         dataset_type = blob_name[3:7]        # e.g., phar
+#         period = blob_name[7:13]             # e.g., 202502
+
+#         # Mapping short dataset types to folders and filenames
+#         expected_files = {
+#             "phar": f"pharmacy/{company}/{company}phar{period}.csv",
+#             "medi": f"medical/{company}/{company}medi{period}.csv",
+#             "demo": f"demo/{company}/{company}demo{period}.csv"
+#         }
+
+#         # All 3 dependencies regardless of which file triggered the function
+#         dependencies = list(expected_files.values())
+
+#         # Check blob existence
+#         blob_client = BlobServiceClient.from_connection_string(STORAGE_CONN)
+#         container_client = blob_client.get_container_client(CONTAINER_NAME)
+        
+
+#         missing = []
+#         for path in dependencies:
+#             full_path = f"incoming/dassscrub/{path}"
+#             try:
+#                 if not container_client.get_blob_client(full_path).exists():
+#                     missing.append(full_path)
+#             except Exception as check_err:
+#                 logging.warning(f"Error checking blob {full_path}: {check_err}")
+#                 missing.append(full_path)
+
+#         if not missing:
+#             logging.info(f" All dependencies exist for {company} - {period}.")
+#             # Optionally trigger further downstream logic here
+#         else:
+#             logging.warning(f" Missing dependencies for {company} - {period}: {missing}")
+
+#     except Exception as e:
+#         logging.error(f"Error processing event: {e}")
+#         raise  # Re-raise to notify Event Grid of failure
 import logging
 import os
 from azure.storage.blob import BlobServiceClient
@@ -107,20 +162,25 @@ def main(event: func.EventGridEvent):
         period = blob_name[7:13]             # e.g., 202502
 
         # Mapping short dataset types to folders and filenames
-        expected_files = {
-            "phar": f"pharmacy/{company}/{company}phar{period}.csv",
-            "medi": f"medical/{company}/{company}medi{period}.csv",
-            "demo": f"demo/{company}/{company}demo{period}.csv"
+        dataset_mapping = {
+            "phar": {"folder": "pharmacy", "filename": f"{company}phar{period}.csv"},
+            "medi": {"folder": "medical", "filename": f"{company}medi{period}.csv"},
+            "demo": {"folder": "demo", "filename": f"{company}demo{period}.csv"}
         }
 
-        # All 3 dependencies regardless of which file triggered the function
-        dependencies = list(expected_files.values())
+        # Get the other dataset types that we need to check (excluding the current one)
+        other_types = [t for t in dataset_mapping.keys() if t != dataset_type]
+        
+        # Prepare dependencies to check (only the other two file types)
+        dependencies = [
+            f"{dataset_mapping[t]['folder']}/{company}/{dataset_mapping[t]['filename']}"
+            for t in other_types
+        ]
 
         # Check blob existence
         blob_client = BlobServiceClient.from_connection_string(STORAGE_CONN)
         container_client = blob_client.get_container_client(CONTAINER_NAME)
         
-
         missing = []
         for path in dependencies:
             full_path = f"incoming/dassscrub/{path}"
@@ -132,10 +192,12 @@ def main(event: func.EventGridEvent):
                 missing.append(full_path)
 
         if not missing:
-            logging.info(f" All dependencies exist for {company} - {period}.")
+            logging.info(f"All required files exist for {company} - {period}.")
             # Optionally trigger further downstream logic here
         else:
-            logging.warning(f" Missing dependencies for {company} - {period}: {missing}")
+            logging.warning(f"Missing files for {company} - {period}: {missing}")
+            # Here you might want to track which files are present/missing
+            # For example, you could store this state somewhere (Table Storage, etc.)
 
     except Exception as e:
         logging.error(f"Error processing event: {e}")
