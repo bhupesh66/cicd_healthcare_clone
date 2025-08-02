@@ -119,6 +119,12 @@ def main(event: func.EventGridEvent):
         # Check blob existence
         blob_client = BlobServiceClient.from_connection_string(STORAGE_CONN)
         container_client = blob_client.get_container_client(CONTAINER_NAME)
+
+        existing_blobs = list(container_client.list_blobs(name_starts_with="incoming/dassscrub/"))
+        existing_blob_names = [blob.name for blob in existing_blobs]
+
+        # 🚀 Log how many and which blobs were found
+        logging.info(f" Found {len(existing_blob_names)} blobs under 'incoming/dassscrub/': {existing_blob_names}")
         
 
         missing = []
