@@ -145,60 +145,74 @@ import os
 from azure.storage.blob import BlobServiceClient
 import azure.functions as func
 
-# Environment variables
 STORAGE_CONN = os.getenv("STORAGE_CONN")
-CONTAINER_NAME = "your-container"  # Replace with your actual container name
+CONTAINER_NAME = os.getenv("CONTAINER_NAME")  # Get from environment variables
+
+def build_expected_path(company: str, dataset_type: str, period: str) -> str:
+    """Constructs the exact expected blob path"""
+    folder_map = {
+        "phar": "pharmacy",
+        "medi": "medical",
+        "demo": "demo"
+    }
+    filename = f"{company}{dataset_type}{period}.csv"
+    return f"incoming/dassscrub/{folder_map[dataset_type]}/{company}/{filename}"
+
+def check_blob_exists(container_client, blob_path: str) -> bool:
+    """Safely checks if blob exists with detailed logging"""
+    try:
+        exists = container_client.get_blob_client(blob_path).exists()
+        logging.debug(f"Checked {blob_path} - {'Exists' if exists else 'Missing'}")
+        return exists
+    except Exception as e:
+        logging.error(f"Error checking {blob_path}: {str(e)}")
+        return False
 
 def main(event: func.EventGridEvent):
     try:
-        logging.info('Event received: %s', event.get_json())
+        # Parse the triggering file info
         data = event.get_json()
         blob_url = data['url']
-
-        # Extract blob info
-        blob_name = blob_url.split("/")[-1]  # e.g., xyzphar202502.csv
-        company = blob_name[:3]              # e.g., xyz
-        dataset_type = blob_name[3:7]        # e.g., phar
-        period = blob_name[7:13]             # e.g., 202502
-
-        # Mapping short dataset types to folders and filenames
-        dataset_mapping = {
-            "phar": {"folder": "pharmacy", "filename": f"{company}phar{period}.csv"},
-            "medi": {"folder": "medical", "filename": f"{company}medi{period}.csv"},
-            "demo": {"folder": "demo", "filename": f"{company}demo{period}.csv"}
-        }
-
-        # Get the other dataset types that we need to check (excluding the current one)
-        other_types = [t for t in dataset_mapping.keys() if t != dataset_type]
+        blob_name = blob_url.split("/")[-1]
         
-        # Prepare dependencies to check (only the other two file types)
-        dependencies = [
-            f"{dataset_mapping[t]['folder']}/{company}/{dataset_mapping[t]['filename']}"
-            for t in other_types
-        ]
+        company = blob_name[:3]       # First 3 chars (xyz)
+        dataset_type = blob_name[3:7] # phar/medi/demo
+        period = blob_name[7:13]      # YYYYMM
+        
+        logging.info(f"Processing {dataset_type} file for {company}-{period}")
 
-        # Check blob existence
+        # Initialize Azure clients
         blob_client = BlobServiceClient.from_connection_string(STORAGE_CONN)
         container_client = blob_client.get_container_client(CONTAINER_NAME)
-        
-        missing = []
-        for path in dependencies:
-            full_path = f"incoming/dassscrub/{path}"
-            try:
-                if not container_client.get_blob_client(full_path).exists():
-                    missing.append(full_path)
-            except Exception as check_err:
-                logging.warning(f"Error checking blob {full_path}: {check_err}")
-                missing.append(full_path)
 
-        if not missing:
-            logging.info(f"All required files exist for {company} - {period}.")
-            # Optionally trigger further downstream logic here
+        # 1. First verify the triggering file exists (should always be true)
+        triggering_path = build_expected_path(company, dataset_type, period)
+        if not check_blob_exists(container_client, triggering_path):
+            logging.error(f"Triggering file missing! {triggering_path}")
+            return
+
+        # 2. Check companion files
+        required_types = {"phar", "medi", "demo"} - {dataset_type}
+        missing_files = []
+        present_files = [triggering_path]
+
+        for req_type in required_types:
+            path = build_expected_path(company, req_type, period)
+            if check_blob_exists(container_client, path):
+                present_files.append(path)
+            else:
+                missing_files.append(path)
+
+        # 3. Determine action based on results
+        if not missing_files:
+            logging.info(f"✅ ALL FILES READY - {company}-{period}")
+            logging.info(f"Present files: {present_files}")
+            # Add your downstream processing here
         else:
-            logging.warning(f"Missing files for {company} - {period}: {missing}")
-            # Here you might want to track which files are present/missing
-            # For example, you could store this state somewhere (Table Storage, etc.)
+            logging.warning(f"⏳ Waiting for files - {company}-{period}")
+            logging.info(f"Present: {present_files}")
+            logging.info(f"Missing: {missing_files}")
 
     except Exception as e:
-        logging.error(f"Error processing event: {e}")
-        raise  # Re-raise to notify Event Grid of failure
+        logging.error(f"🚨 Critical error: {str(e)}", exc_info=True)
+        raise
