@@ -67,83 +67,83 @@
 #         logging.warning(f"Missing dependency files for {company} period {period}: {missing_files}")
 
 
-# import logging
-# import azure.functions as func
-# import json
+import logging
+import azure.functions as func
+import json
 
-# def main(event: func.EventGridEvent) -> None:
-#     logging.info("Event received!")
+def main(event: func.EventGridEvent) -> None:
+    logging.info("Event received!")
     
-#     try:
-#         event_data = event.get_json()
-#         logging.info(f"Event data: {json.dumps(event_data)}")
-#     except Exception as e:
-#         logging.error(f"Failed to process event: {e}")
-#         raise e  # This will tell Event Grid the delivery failed
+    try:
+        event_data = event.get_json()
+        logging.info(f"Event data: {json.dumps(event_data)}")
+    except Exception as e:
+        logging.error(f"Failed to process event: {e}")
+        raise e  # This will tell Event Grid the delivery failed
 
     # Nothing needs to be returned for EventGrid triggers (no HTTP response),
     # but raising an exception will mark it as failure, and no exception = success
 
 
 #mport logging
-import logging
-import os
-from azure.storage.blob import BlobServiceClient
-import azure.functions as func
+# import logging
+# import os
+# from azure.storage.blob import BlobServiceClient
+# import azure.functions as func
 
-# Environment variables
-STORAGE_CONN = os.getenv("STORAGE_CONN")
-CONTAINER_NAME = "your-container"  # Replace with your actual container name
+# # Environment variables
+# STORAGE_CONN = os.getenv("STORAGE_CONN")
+# CONTAINER_NAME = "your-container"  # Replace with your actual container name
 
-def main(event: func.EventGridEvent):
-    try:
-        logging.info('Event received: %s', event.get_json())
-        data = event.get_json()
-        blob_url = data['url']
+# def main(event: func.EventGridEvent):
+#     try:
+#         logging.info('Event received: %s', event.get_json())
+#         data = event.get_json()
+#         blob_url = data['url']
 
-        # Extract blob info
-        blob_name = blob_url.split("/")[-1]
-        company = blob_name[:3]
-        dataset_type = blob_name[3:7]
-        period = blob_name[7:13]
+#         # Extract blob info
+#         blob_name = blob_url.split("/")[-1]
+#         company = blob_name[:3]
+#         dataset_type = blob_name[3:7]
+#         period = blob_name[7:13]
 
-        # Define expected blob paths
-        paths = {
-            "phar": [f"pharmacy/{company}/{company}pharmacy{period}.csv",
-                     f"medical/{company}/{company}medical{period}.csv",
-                     f"demo/{company}/{company}demo{period}.csv"],
-            "medi": [f"medical/{company}/{company}medical{period}.csv",
-                     f"elig/{company}/{company}elig{period}.csv",
-                     f"pharmacy/{company}/{company}pharmacy{period}.csv"],
-            "demo": [f"demo/{company}/{company}demo{period}.csv",
-                     f"pharmacy/{company}/{company}pharmacy{period}.csv",
-                     f"medical/{company}/{company}medical{period}.csv"],
-            "elig": [f"elig/{company}/{company}elig{period}.csv",
-                     f"pharmacy/{company}/{company}pharmacy{period}.csv",
-                     f"medical/{company}/{company}medical{period}.csv"],
-        }
+#         # Define expected blob paths
+#         paths = {
+#             "phar": [f"pharmacy/{company}/{company}pharmacy{period}.csv",
+#                      f"medical/{company}/{company}medical{period}.csv",
+#                      f"demo/{company}/{company}demo{period}.csv"],
+#             "medi": [f"medical/{company}/{company}medical{period}.csv",
+#                      f"elig/{company}/{company}elig{period}.csv",
+#                      f"pharmacy/{company}/{company}pharmacy{period}.csv"],
+#             "demo": [f"demo/{company}/{company}demo{period}.csv",
+#                      f"pharmacy/{company}/{company}pharmacy{period}.csv",
+#                      f"medical/{company}/{company}medical{period}.csv"],
+#             "elig": [f"elig/{company}/{company}elig{period}.csv",
+#                      f"pharmacy/{company}/{company}pharmacy{period}.csv",
+#                      f"medical/{company}/{company}medical{period}.csv"],
+#         }
 
-        dependencies = paths.get(dataset_type, [f"{dataset_type}/{company}/{blob_name}"])
+#         dependencies = paths.get(dataset_type, [f"{dataset_type}/{company}/{blob_name}"])
 
-        # Check blob existence
-        blob_client = BlobServiceClient.from_connection_string(STORAGE_CONN)
-        container_client = blob_client.get_container_client(CONTAINER_NAME)
+#         # Check blob existence
+#         blob_client = BlobServiceClient.from_connection_string(STORAGE_CONN)
+#         container_client = blob_client.get_container_client(CONTAINER_NAME)
 
-        missing = []
-        for path in dependencies:
-            full_path = f"incoming/dassscrub/{path}"
-            try:
-                if not container_client.get_blob_client(full_path).exists():
-                    missing.append(full_path)
-            except Exception as check_err:
-                logging.warning(f"Error checking blob {full_path}: {check_err}")
-                missing.append(full_path)
+#         missing = []
+#         for path in dependencies:
+#             full_path = f"incoming/dassscrub/{path}"
+#             try:
+#                 if not container_client.get_blob_client(full_path).exists():
+#                     missing.append(full_path)
+#             except Exception as check_err:
+#                 logging.warning(f"Error checking blob {full_path}: {check_err}")
+#                 missing.append(full_path)
 
-        if not missing:
-            logging.info(f" All dependencies for {company} - {period} exist.")
-        else:
-            logging.warning(f" Missing dependencies for {company} - {period}: {missing}")
+#         if not missing:
+#             logging.info(f" All dependencies for {company} - {period} exist.")
+#         else:
+#             logging.warning(f" Missing dependencies for {company} - {period}: {missing}")
 
-    except Exception as e:
-        logging.error(f"Error processing event: {e}")
-        raise  # Re-raise to notify Event Grid of failure
+#     except Exception as e:
+#         logging.error(f"Error processing event: {e}")
+#         raise  # Re-raise to notify Event Grid of failure
