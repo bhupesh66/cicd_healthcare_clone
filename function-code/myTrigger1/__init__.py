@@ -4,69 +4,81 @@ from azure.storage.blob import BlobServiceClient
 from azure.servicebus import ServiceBusClient, ServiceBusMessage
 import azure.functions as func
 
-# Environment variables (configured in Function App settings)
+# Environment variables
 STORAGE_CONN = os.getenv("STORAGE_CONN")
 SERVICEBUS_CONN = os.getenv("SERVICEBUS_CONN")
 QUEUE_NAME = "data-ready-queue"
-CONTAINER_NAME = "incoming"  # Change to your actual container name
+CONTAINER_NAME = "incoming"
 
 def main(event: func.EventGridEvent):
-    logging.info('Event received: %s', event.get_json())
-    data = event.get_json()
-    blob_url = data['url']  # full URL of the new blob
+    # First handle Event Grid validation request
+    if 'validationCode' in event.get_json():
+        logging.info("Handling validation request")
+        return {
+            "validationResponse": event.get_json()['validationCode']
+        }
 
-    # Extract blob name from URL
-    # Example URL: https://<account>.blob.core.windows.net/container/incoming/dassscrub/demo/xyz/xyzdemo202507.csv
-    blob_name = blob_url.split("/")[-1]  # e.g., xyzdemo202507.csv
-    company = blob_name[:3]               # 'xyz'
-    dataset_type = blob_name[3:7]         # 'demo', 'phar', 'medi', 'elig' etc.
-    period = blob_name[7:13]               # '202507'
+    try:
+        logging.info('Event received: %s', event.get_json())
+        data = event.get_json()
+        
+        # Validate required fields
+        if 'url' not in data:
+            raise ValueError("Missing 'url' in event data")
+            
+        blob_url = data['url']
+        parts = blob_url.split("/")
+        
+        # More robust path parsing
+        if len(parts) < 6:
+            raise ValueError(f"Invalid blob URL format: {blob_url}")
+            
+        blob_name = parts[-1]
+        if len(blob_name) < 13:
+            raise ValueError(f"Invalid blob name format: {blob_name}")
 
-    blob_client = BlobServiceClient.from_connection_string(STORAGE_CONN)
-    container_client = blob_client.get_container_client(CONTAINER_NAME)
+        company = blob_name[:3]
+        dataset_type = blob_name[3:7]
+        period = blob_name[7:13]
 
-    # Define expected file paths
-    pharmacy_file = f"incoming/dassscrub/pharmacy/{company}/{company}pharmacy{period}.csv"
-    medical_file  = f"incoming/dassscrub/medical/{company}/{company}medical{period}.csv"
-    demo_file    = f"incoming/dassscrub/demo/{company}/{company}demo{period}.csv"
-    elig_file    = f"incoming/dassscrub/elig/{company}/{company}elig{period}.csv"
+        # Initialize clients
+        blob_client = BlobServiceClient.from_connection_string(STORAGE_CONN)
+        container_client = blob_client.get_container_client(CONTAINER_NAME)
 
-    # Determine dependencies based on the dataset_type of incoming file
-    if dataset_type == "phar":   # pharmacy file
-        dependencies = [pharmacy_file, medical_file, demo_file]
-    elif dataset_type == "medi":  # medical file
-        dependencies = [medical_file, elig_file, pharmacy_file]
-    elif dataset_type == "demo":  # demo file
-        dependencies = [demo_file, pharmacy_file, medical_file]
-    elif dataset_type == "elig":  # elig file
-        dependencies = [elig_file, pharmacy_file, medical_file]
-    else:
-        # If file type unknown, consider only that file itself (optional)
-        dependencies = [f"incoming/dassscrub/{dataset_type}/{company}/{blob_name}"]
+        # Define file paths
+        file_types = {
+            "phar": "pharmacy",
+            "medi": "medical",
+            "demo": "demo",
+            "elig": "elig"
+        }
+        
+        if dataset_type not in file_types:
+            raise ValueError(f"Unknown dataset type: {dataset_type}")
 
-    # Check if all dependencies exist
-    all_exist = True
-    missing_files = []
-    for dep in dependencies:
-        blob_dep_client = container_client.get_blob_client(dep)
-        if not blob_dep_client.exists():
-            all_exist = False
-            missing_files.append(dep)
+        # Check dependencies
+        dependencies = []
+        for dtype, dname in file_types.items():
+            if dtype != dataset_type:  # Skip current file type
+                dep_path = f"incoming/dassscrub/{dname}/{company}/{company}{dtype}{period}.csv"
+                dependencies.append(dep_path)
 
-    if all_exist:
-        # All dependency files are present, send message to Service Bus
-        sb_client = ServiceBusClient.from_connection_string(SERVICEBUS_CONN)
-        with sb_client:
-            sender = sb_client.get_queue_sender(queue_name=QUEUE_NAME)
-            with sender:
-                msg_body = f"{company}:{period}:ready"
-                msg = ServiceBusMessage(msg_body)
-                sender.send_messages(msg)
-        logging.info(f"All files found for {company} period {period}. Sent message to Service Bus.")
-    else:
-        logging.warning(f"Missing dependency files for {company} period {period}: {missing_files}")
+        missing_files = []
+        for dep in dependencies:
+            if not container_client.get_blob_client(dep).exists():
+                missing_files.append(dep)
 
+        if not missing_files:
+            # Send to Service Bus if all files exist
+            with ServiceBusClient.from_connection_string(SERVICEBUS_CONN) as sb_client:
+                with sb_client.get_queue_sender(QUEUE_NAME) as sender:
+                    msg = ServiceBusMessage(f"{company}:{period}:ready")
+                    sender.send_messages(msg)
+            logging.info(f"Processed {blob_name} successfully")
 
+    except Exception as e:
+        logging.error(f"Error processing event: {str(e)}")
+        raise  # Re-raise to ensure Event Grid knows the delivery failed
 # import logging
 # import azure.functions as func
 # import json
