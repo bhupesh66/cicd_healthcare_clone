@@ -85,7 +85,6 @@
     # but raising an exception will mark it as failure, and no exception = success
 
 
-#mport logging
 import logging
 import os
 from azure.storage.blob import BlobServiceClient
@@ -102,28 +101,20 @@ def main(event: func.EventGridEvent):
         blob_url = data['url']
 
         # Extract blob info
-        blob_name = blob_url.split("/")[-1]
-        company = blob_name[:3]
-        dataset_type = blob_name[3:7]
-        period = blob_name[7:13]
+        blob_name = blob_url.split("/")[-1]  # e.g., xyzphar202502.csv
+        company = blob_name[:3]              # e.g., xyz
+        dataset_type = blob_name[3:7]        # e.g., phar
+        period = blob_name[7:13]             # e.g., 202502
 
-        # Define expected blob paths
-        paths = {
-            "phar": [f"pharmacy/{company}/{company}pharmacy{period}.csv",
-                     f"medical/{company}/{company}medical{period}.csv",
-                     f"demo/{company}/{company}demo{period}.csv"],
-            "medi": [f"medical/{company}/{company}medical{period}.csv",
-                     f"elig/{company}/{company}elig{period}.csv",
-                     f"pharmacy/{company}/{company}pharmacy{period}.csv"],
-            "demo": [f"demo/{company}/{company}demo{period}.csv",
-                     f"pharmacy/{company}/{company}pharmacy{period}.csv",
-                     f"medical/{company}/{company}medical{period}.csv"],
-            "elig": [f"elig/{company}/{company}elig{period}.csv",
-                     f"pharmacy/{company}/{company}pharmacy{period}.csv",
-                     f"medical/{company}/{company}medical{period}.csv"],
+        # Mapping short dataset types to folders and filenames
+        expected_files = {
+            "phar": f"pharmacy/{company}/{company}phar{period}.csv",
+            "medi": f"medical/{company}/{company}medi{period}.csv",
+            "demo": f"demo/{company}/{company}demo{period}.csv"
         }
 
-        dependencies = paths.get(dataset_type, [f"{dataset_type}/{company}/{blob_name}"])
+        # All 3 dependencies regardless of which file triggered the function
+        dependencies = list(expected_files.values())
 
         # Check blob existence
         blob_client = BlobServiceClient.from_connection_string(STORAGE_CONN)
@@ -140,10 +131,11 @@ def main(event: func.EventGridEvent):
                 missing.append(full_path)
 
         if not missing:
-            logging.info(f" All dependencies for {company} - {period} exist.")
+            logging.info(f"All dependencies exist for {company} - {period}.")
+            # Optionally trigger further downstream logic here
         else:
             logging.warning(f" Missing dependencies for {company} - {period}: {missing}")
 
     except Exception as e:
-        logging.error(f"Error processing event: {e}")
+        logging.error(f" Error processing event: {e}")
         raise  # Re-raise to notify Event Grid of failure
