@@ -145,8 +145,10 @@ import os
 from azure.storage.blob import BlobServiceClient
 import azure.functions as func
 
+
+
 STORAGE_CONN = os.getenv("STORAGE_CONN")
-CONTAINER_NAME = os.getenv("CONTAINER_NAME")  # Get from environment variables
+CONTAINER_NAME = "incoming" # Get from environment variables
 
 def build_expected_path(company: str, dataset_type: str, period: str) -> str:
     """Constructs the exact expected blob path"""
