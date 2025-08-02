@@ -90,7 +90,6 @@ import os
 from azure.storage.blob import BlobServiceClient
 import azure.functions as func
 
-# Environment variables
 STORAGE_CONN = os.getenv("STORAGE_CONN")
 CONTAINER_NAME = "your-container"  # Replace with your actual container name
 
@@ -100,42 +99,40 @@ def main(event: func.EventGridEvent):
         data = event.get_json()
         blob_url = data['url']
 
-        # Extract blob info
-        blob_name = blob_url.split("/")[-1]  # e.g., xyzphar202502.csv
-        company = blob_name[:3]              # e.g., xyz
-        dataset_type = blob_name[3:7]        # e.g., phar
-        period = blob_name[7:13]             # e.g., 202502
+        blob_name = blob_url.split("/")[-1]
+        company = blob_name[:3]
+        dataset_type = blob_name[3:7]
+        period = blob_name[7:13]
 
-        # Mapping short dataset types to folders and filenames
-        expected_files = {
+        expected_paths = {
             "phar": f"pharmacy/{company}/{company}phar{period}.csv",
             "medi": f"medical/{company}/{company}medi{period}.csv",
             "demo": f"demo/{company}/{company}demo{period}.csv"
         }
 
-        # All 3 dependencies regardless of which file triggered the function
-        dependencies = list(expected_files.values())
+        required_files = list(expected_paths.values())
 
-        # Check blob existence
-        blob_client = BlobServiceClient.from_connection_string(STORAGE_CONN)
-        container_client = blob_client.get_container_client(CONTAINER_NAME)
+        blob_service_client = BlobServiceClient.from_connection_string(STORAGE_CONN)
+        container_client = blob_service_client.get_container_client(CONTAINER_NAME)
+
+        # List all blobs under incoming/dassscrub/
+        existing_blobs = list(container_client.list_blobs(name_starts_with="incoming/dassscrub/"))
+        existing_blob_names = [blob.name for blob in existing_blobs]
+
+        # 🚀 Log how many and which blobs were found
+        logging.info(f"🔍 Found {len(existing_blob_names)} blobs under 'incoming/dassscrub/': {existing_blob_names}")
 
         missing = []
-        for path in dependencies:
+        for path in required_files:
             full_path = f"incoming/dassscrub/{path}"
-            try:
-                if not container_client.get_blob_client(full_path).exists():
-                    missing.append(full_path)
-            except Exception as check_err:
-                logging.warning(f"Error checking blob {full_path}: {check_err}")
+            if full_path not in existing_blob_names:
                 missing.append(full_path)
 
         if not missing:
             logging.info(f"All dependencies exist for {company} - {period}.")
-            # Optionally trigger further downstream logic here
         else:
-            logging.warning(f" Missing dependencies for {company} - {period}: {missing}")
+            logging.warning(f"Missing dependencies for {company} - {period}: {missing}")
 
     except Exception as e:
-        logging.error(f" Error processing event: {e}")
-        raise  # Re-raise to notify Event Grid of failure
+        logging.error(f"Error processing event: {e}")
+        raise
