@@ -84,7 +84,7 @@ jobs:
       - name: Get Storage Account Name
         id: get_storage
         working-directory: terraform/${{ matrix.env }}/infra
-        run: echo "storage_account_name=$(terraform output -raw storage_account_name)" >> $GITHUB_ENV
+        run: echo "storage_account_name=$(terraform output -raw storage_account_name | tr -d '\n\r')" >> $GITHUB_ENV
 
       # Get Storage Account Connection String from Azure CLI
       - name: Get Storage Account Connection String
