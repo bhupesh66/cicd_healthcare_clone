@@ -11,7 +11,7 @@ on:
     - dev
     - feature1
        
-    paths:
+   paths:
       - '.github/workflows/update_az_function.yaml'
 
   workflow_dispatch:
