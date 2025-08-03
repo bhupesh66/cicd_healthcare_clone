@@ -15,7 +15,6 @@ jobs:
 
     env:
       RESOURCE_GROUP_NAME: healthcare_project
-      FUNCTION_APP_NAME: process-file-func
 
     steps:
       - name: Checkout repository
@@ -85,22 +84,7 @@ jobs:
 
       - name: Publish Azure Function Code
         working-directory: function-code
-        run: func azure functionapp publish ${{ env.FUNCTION_APP_NAME }} --python
-
-      # Get the storage connection string from Terraform output and save to file
-      - name: Get storage connection string output from Terraform
-        working-directory: terraform/${{ matrix.env }}/infra
-        id: get_storage_conn
-        run: |
-          STORAGE_CONN=$(terraform output -raw storage_connection_string)
-          echo "STORAGE_CONN=$STORAGE_CONN" > storage-info/storage-info.txt
-          echo "storage_conn=$STORAGE_CONN" >> $GITHUB_OUTPUT
-
-      - name: Upload storage info artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: storage-info
-          path: storage-info
+        run: func azure functionapp publish process-file-func --python
 
       # Step 2: Deploy EventGrid + Remaining Infrastructure
       - name: Terraform Apply (Remaining Infrastructure)
