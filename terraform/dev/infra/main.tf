@@ -48,14 +48,14 @@ module "storage" {
 # }
 
 module "function" {
-  source                    = "../../modules/functions"
-  resource_group_name       = data.azurerm_resource_group.rg.name
-  location                  = var.location
-  function_name             = var.function_name
-  function_storage_account  = var.function_storage_account
-  log_analytics_workspace   = module.log_analytics.workspace_id
-  storage_account_id        = module.storage.storage_account_id
-  
+  source                   = "../../modules/functions"
+  resource_group_name      = data.azurerm_resource_group.rg.name
+  location                 = var.location
+  function_name            = var.function_name
+  function_storage_account = var.function_storage_account
+  log_analytics_workspace  = module.log_analytics.workspace_id
+  storage_account_id       = module.storage.storage_account_id
+
   # Removed servicebus_connection_string and servicebus_queue_name
 }
 
