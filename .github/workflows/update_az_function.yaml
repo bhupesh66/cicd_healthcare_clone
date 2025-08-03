@@ -59,9 +59,9 @@ jobs:
         id: get_storage_name
         working-directory: terraform/dev/infra
         run: |
-              STORAGE_ACCOUNT_NAME=$(terraform output -raw storage_account_name)
-              echo "Retrieved STORAGE_ACCOUNT_NAME=$STORAGE_ACCOUNT_NAME"
-              echo "storage_account_name=${STORAGE_ACCOUNT_NAME}" >> "$GITHUB_OUTPUT"
+              RAW_OUTPUT=$(terraform output -raw storage_account_name 2>/dev/null | head -n 1)
+              echo "Sanitized storage account name: $RAW_OUTPUT"
+              echo "storage_account_name=$RAW_OUTPUT" >> $GITHUB_OUTPUT
 
 
       - name: Get Storage Account Key
