@@ -105,6 +105,8 @@ resource "azurerm_function_app" "func" {
   app_settings = {
     FUNCTIONS_WORKER_RUNTIME = "python"
     STORAGE_CONN             = var.storage_connection_string
+   STORAGE_ACCOUNT          = var.storage_account_id 
+  CONTAINER_NAME           = "incoming"
   }
 }
 
