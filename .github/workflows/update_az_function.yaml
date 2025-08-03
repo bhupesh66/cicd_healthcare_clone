@@ -9,7 +9,7 @@ on:
   push:
     branches:
       - dev
-       -feature1
+       
     paths:
       - '.github/workflows/update_az_function.yaml'
 
