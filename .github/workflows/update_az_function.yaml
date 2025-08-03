@@ -55,27 +55,30 @@ jobs:
         working-directory: terraform/dev/infra
         run: terraform init
 
-      - name: Terraform Get Storage Account Name
+      - name: Get Storage Account Name
         id: get_storage_name
         working-directory: terraform/dev/infra
         run: |
-          RAW_OUTPUT=$(terraform output -raw storage_account_name 2>/dev/null | head -n 1 | tr -d '\n')
-          echo "storage_account_name=$RAW_OUTPUT" >> $GITHUB_OUTPUT
+          storage_account_name=$(terraform output -raw storage_account_name)
+          echo "storage_account_name=$storage_account_name" >> $GITHUB_OUTPUT
 
       - name: Get Storage Account Key
         id: get_storage_key
         run: |
-          STORAGE_KEY=$(az storage account keys list \
+          storage_key=$(az storage account keys list \
             --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
             --account-name ${{ steps.get_storage_name.outputs.storage_account_name }} \
             --query '[0].value' -o tsv)
-          echo "storage_key=$STORAGE_KEY" >> $GITHUB_OUTPUT
+          echo "storage_key=$storage_key" >> $GITHUB_OUTPUT
 
-      - name: Update Function App Setting STORAGE_CONN
+      - name: Update Azure Function App Setting STORAGE_CONN
         run: |
-          STORAGE_CONN="DefaultEndpointsProtocol=https;AccountName=${{ steps.get_storage_name.outputs.storage_account_name }};AccountKey=${{ steps.get_storage_key.outputs.storage_key }};EndpointSuffix=core.windows.net"
+          storage_account_name=${{ steps.get_storage_name.outputs.storage_account_name }}
+          storage_key=${{ steps.get_storage_key.outputs.storage_key }}
+
+          storage_conn="DefaultEndpointsProtocol=https;AccountName=$storage_account_name;AccountKey=$storage_key;EndpointSuffix=core.windows.net"
 
           az functionapp config appsettings set \
             --name ${{ env.FUNCTION_APP_NAME }} \
             --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
-            --settings STORAGE_CONN="$STORAGE_CONN"
+            --settings STORAGE_CONN="$storage_conn"
