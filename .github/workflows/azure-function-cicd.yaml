@@ -36,13 +36,18 @@ jobs:
           echo "ARM_TENANT_ID=${{ secrets.ACR_TENANT_ID }}" >> $GITHUB_ENV
           echo "ARM_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
 
-      - name: Export Terraform input variables (TF_VAR_*)
+      - name: Export Terraform input variables
         run: |
           echo "TF_VAR_AZURE_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
           echo "TF_VAR_ACR_CLIENT_ID=${{ secrets.ACR_CLIENT_ID }}" >> $GITHUB_ENV
           echo "TF_VAR_ACR_CLIENT_SECRET=${{ secrets.ACR_CLIENT_SECRET }}" >> $GITHUB_ENV
           echo "TF_VAR_ACR_TENANT_ID=${{ secrets.ACR_TENANT_ID }}" >> $GITHUB_ENV
           echo "TF_VAR_resource_group_name=${{ env.RESOURCE_GROUP_NAME }}" >> $GITHUB_ENV
+
+      - name: Setup Terraform CLI
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.7
 
       - name: Break Terraform State Lease (optional)
         continue-on-error: true
@@ -52,11 +57,6 @@ jobs:
             --container-name tfstate \
             --blob-name terraform.tfstate \
             --auth-mode login || echo "Skipping lease break"
-
-      - name: Setup Terraform CLI
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: 1.5.7
 
       - name: Terraform Init
         working-directory: terraform/${{ matrix.env }}/infra
@@ -70,7 +70,7 @@ jobs:
         working-directory: terraform/${{ matrix.env }}/infra
         run: terraform validate
 
-      # Step 1: Deploy Function Infra Only (no EventGrid)
+      # Step 1: Deploy Function Infra Only
       - name: Terraform Apply (Function Infra Only)
         if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
         working-directory: terraform/${{ matrix.env }}/infra
@@ -87,32 +87,36 @@ jobs:
         working-directory: function-code
         run: func azure functionapp publish ${{ env.FUNCTION_APP_NAME }} --python
 
-      # Step 2: Deploy EventGrid + Remaining Infrastructure (full apply)
-      - name: Terraform Apply (Remaining Infrastructure)
+      # Step 2: Deploy Remaining Infra (Event Grid, etc.)
+      - name: Terraform Apply (Remaining Infra)
         if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
         working-directory: terraform/${{ matrix.env }}/infra
         run: terraform apply -auto-approve -var-file=terraform.tfvars -var="deploy_eventgrid=true"
 
-      # Step 3: Get Storage Account Name from Terraform outputs (AFTER full apply)
+      # Step 3: Get Storage Account Name
       - name: Get Storage Account Name
-        id: get_storage
+        id: get_storage_name
         working-directory: terraform/${{ matrix.env }}/infra
         run: |
           STORAGE_NAME=$(terraform output -raw storage_account_name | tr -d '\n\r')
           echo "storage_account_name=$STORAGE_NAME" >> $GITHUB_ENV
+          echo "Storage account name: $STORAGE_NAME"
 
-      # Step 4: Get Storage Account Connection String from Azure CLI
+      # Step 4: Get Connection String
       - name: Get Storage Account Connection String
         id: get_storage_conn
         run: |
-          echo "Using storage account: ${{ env.storage_account_name }}"
+          echo "Fetching connection string for: ${{ env.storage_account_name }}"
           CONNECTION_STRING=$(az storage account show-connection-string \
             --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
             --name ${{ env.storage_account_name }} \
             --query connectionString -o tsv)
           echo "storage_conn=$CONNECTION_STRING" >> $GITHUB_ENV
 
-      # Step 5: Update Azure Function App Setting STORAGE_CONN with connection string
-      - name: Update Function App Setting STORAGE_CONN
+      # Step 5: Update Function App Setting
+      - name: Set Azure Function STORAGE_CONN App Setting
         run: |
-          az functionapp config appsettings set --name ${{ env.FUNCTION_APP_NAME }} --resource-group ${{ env.RESOURCE_GROUP_NAME }} --settings STORAGE_CONN=${{ env.storage_conn }}
+          az functionapp config appsettings set \
+            --name ${{ env.FUNCTION_APP_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
+            --settings STORAGE_CONN="${{ env.storage_conn }}"
