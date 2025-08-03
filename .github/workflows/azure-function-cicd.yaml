@@ -98,39 +98,48 @@ jobs:
         id: get_storage_name
         working-directory: terraform/${{ matrix.env }}/infra
         run: |
-            # First refresh the state
-               terraform refresh -var-file=terraform.tfvars
+             # Get clean output by writing to a file first
+             terraform output -raw storage_account_name > storage_name.txt
+             STORAGE_NAME=$(head -n 1 storage_name.txt | tr -d '\n\r')
+             rm storage_name.txt
     
-              # Get clean storage account name
-              STORAGE_NAME=$(terraform output -raw storage_account_name)
-              STORAGE_NAME_CLEAN=$(echo "$STORAGE_NAME" | tr -d '\n\r')
-              echo "name=$STORAGE_NAME_CLEAN" >> $GITHUB_OUTPUT
-              echo "STORAGE_ACCOUNT=$STORAGE_NAME_CLEAN" >> $GITHUB_ENV
-              echo "Storage account name: $STORAGE_NAME_CLEAN"
+             # Validate it's a proper storage account name
+             if [[ ! "$STORAGE_NAME" =~ ^[a-z0-9]{3,24}$ ]]; then
+             echo "ERROR: Invalid storage account name: '$STORAGE_NAME'"
+             exit 1
+               fi
+    
+               echo "name=$STORAGE_NAME" >> $GITHUB_OUTPUT
+               echo "STORAGE_ACCOUNT=$STORAGE_NAME" >> $GITHUB_ENV
+               echo "Using storage account: $STORAGE_NAME"
 
-             # Step 4: Get Storage Account Connection String
 
-      - name: Get Storage Account Connection String
+      - name: Get Storage Connection String
         id: get_storage_conn
         run: |
-               echo "Fetching connection string for: ${{ steps.get_storage_name.outputs.name }}"
+              echo "Fetching connection string for: ${{ steps.get_storage_name.outputs.name }}"
     
-                # Add retry logic
+              # Add retry logic
                for i in {1..5}; do
-               CONNECTION_STRING=$(az storage account show-connection-string \
-               --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
+              CONN_STR=$(az storage account show-connection-string \
                --name "${{ steps.get_storage_name.outputs.name }}" \
-               --query connectionString -o tsv) && break
-                sleep 10
-                 done
+                --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
+                 --query connectionString -o tsv)
+      
+                if [ -n "$CONN_STR" ]; then
+                 echo "conn=$CONN_STR" >> $GITHUB_OUTPUT
+                 echo "Connection string retrieved successfully"
+                   break
+                    else
+                    echo "Attempt $i/5 failed, retrying in 10 seconds..."
+                      sleep 10
+                        fi
+                         done
     
-               if [ -z "$CONNECTION_STRING" ]; then
-               echo "Failed to get connection string after 5 attempts"
-               exit 1
-                  fi
-    
-                 echo "conn=$CONNECTION_STRING" >> $GITHUB_OUTPUT
-                 echo "STORAGE_CONN=$CONNECTION_STRING" >> $GITHUB_ENV
+                          if [ -z "$CONN_STR" ]; then
+                           echo "ERROR: Failed to get connection string"
+                            exit 1
+                               fi
 
               # Step 5: Update Azure Function App Setting STORAGE_CONN
       - name: Update Function App Setting STORAGE_CONN
