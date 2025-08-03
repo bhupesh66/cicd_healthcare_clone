@@ -58,10 +58,10 @@ jobs:
       - name: Get storage account name from terraform output
         id: get_storage_name
         working-directory: terraform/dev/infra
-        # This approach is more direct and less prone to parsing errors.
-        # It gets the raw output and then checks if it's empty.
+        # This approach filters the output to only get the last line, which contains the raw output
+        # from Terraform, avoiding any debug messages from the 'setup-terraform' action.
         run: |
-          STORAGE_ACCOUNT_NAME=$(terraform output -raw storage_account_name)
+          STORAGE_ACCOUNT_NAME=$(terraform output -raw storage_account_name | tail -n 1)
           if [ -z "$STORAGE_ACCOUNT_NAME" ]; then
             echo "Error: The 'storage_account_name' output variable is empty. This may be due to a missing or corrupt Terraform state file, or the output variable does not exist."
             echo "Please ensure the Terraform code has an output block for 'storage_account_name' and the 'terraform init' step is successful."
