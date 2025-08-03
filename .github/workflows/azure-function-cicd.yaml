@@ -77,7 +77,8 @@ jobs:
       - name: Get Storage Connection String output
         id: get_conn_str
         working-directory: terraform/${{ matrix.env }}/infra
-        run: echo "conn_str_base64=$(terraform output -raw storage_connection_string | base64)" >> $GITHUB_ENV
+        run: |
+            printf "conn_str_base64=%s\n" "$(terraform output -raw storage_connection_string | base64)" >> $GITHUB_ENV
 
       - name: Terraform Apply Function Module with real connection string
         working-directory: terraform/${{ matrix.env }}/infra
