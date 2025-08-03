@@ -59,28 +59,22 @@ jobs:
         id: get_storage_name
         working-directory: terraform/dev/infra
         run: |
-          STORAGE_ACCOUNT_NAME=$(terraform output -raw storage_account_name)
-          echo "Storage account name is: $STORAGE_ACCOUNT_NAME"
-          echo "storage_account_name=$STORAGE_ACCOUNT_NAME" >> $GITHUB_OUTPUT
+              STORAGE_ACCOUNT_NAME=$(terraform output -raw storage_account_name | grep -E '^[a-z0-9]{3,24}$')
+               [ -z "$STORAGE_ACCOUNT_NAME" ] && exit 1
+              echo "storage_account_name=$STORAGE_ACCOUNT_NAME" >> $GITHUB_OUTPUT
 
       - name: Get storage account key
         id: get_storage_key
         run: |
-          STORAGE_ACCOUNT_NAME=${{ steps.get_storage_name.outputs.storage_account_name }}
-          STORAGE_KEY=$(az storage account keys list \
+            STORAGE_KEY=$(az storage account keys list \
             --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
-            --account-name "$STORAGE_ACCOUNT_NAME" \
+            --account-name "${{ steps.get_storage_name.outputs.storage_account_name }}" \
             --query '[0].value' -o tsv)
-          echo "storage_key=$STORAGE_KEY" >> $GITHUB_OUTPUT
+            echo "storage_key=$STORAGE_KEY" >> $GITHUB_OUTPUT
 
-      - name: Update Azure Function App Setting STORAGE_CONN
+      - name: Update Function App Setting
         run: |
-          STORAGE_ACCOUNT_NAME=${{ steps.get_storage_name.outputs.storage_account_name }}
-          STORAGE_KEY=${{ steps.get_storage_key.outputs.storage_key }}
-
-          STORAGE_CONN="DefaultEndpointsProtocol=https;AccountName=$STORAGE_ACCOUNT_NAME;AccountKey=$STORAGE_KEY;EndpointSuffix=core.windows.net"
-
-          az functionapp config appsettings set \
-            --name ${{ env.FUNCTION_APP_NAME }} \
-            --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
-            --settings STORAGE_CONN="$STORAGE_CONN"
+             az functionapp config appsettings set \
+             --name ${{ env.FUNCTION_APP_NAME }} \
+             --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
+             --settings STORAGE_CONN="DefaultEndpointsProtocol=https;AccountName=${{ steps.get_storage_name.outputs.storage_account_name }};AccountKey=${{ steps.get_storage_key.outputs.storage_key }};EndpointSuffix=core.windows.net"
