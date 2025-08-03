@@ -95,13 +95,21 @@ jobs:
 
       # Step 3: Get Storage Account Name from Terraform outputs (AFTER full apply)
       - name: Get Storage Account Name
+        id: get_storage
         working-directory: terraform/${{ matrix.env }}/infra
-        run: echo "storage_account_name=$(terraform output -raw storage_account_name | tr -d '\n\r')" >> $GITHUB_ENV
+        run: |
+          STORAGE_NAME=$(terraform output -raw storage_account_name | tr -d '\n\r')
+          echo "storage_account_name=$STORAGE_NAME" >> $GITHUB_ENV
 
       # Step 4: Get Storage Account Connection String from Azure CLI
       - name: Get Storage Account Connection String
+        id: get_storage_conn
         run: |
-          CONNECTION_STRING=$(az storage account show-connection-string --resource-group ${{ env.RESOURCE_GROUP_NAME }} --name ${{ env.storage_account_name }} --query connectionString -o tsv)
+          echo "Using storage account: ${{ env.storage_account_name }}"
+          CONNECTION_STRING=$(az storage account show-connection-string \
+            --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
+            --name ${{ env.storage_account_name }} \
+            --query connectionString -o tsv)
           echo "storage_conn=$CONNECTION_STRING" >> $GITHUB_ENV
 
       # Step 5: Update Azure Function App Setting STORAGE_CONN with connection string
