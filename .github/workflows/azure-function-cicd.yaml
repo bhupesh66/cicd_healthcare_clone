@@ -74,29 +74,18 @@ jobs:
         run: |
           terraform apply -auto-approve -var-file=terraform.tfvars -var="deploy_eventgrid=false" -var="storage_connection_string=dummy" -target=module.storage.azurerm_storage_account.storage
 
-      - name: Get Storage Connection String output
-        id: get_conn_str
+      - name: Save storage connection string to file
         working-directory: terraform/${{ matrix.env }}/infra
-        run: |
-            
-    
-            # Get and encode the connection string
-            CONN_STR=$(terraform output -raw storage_connection_string)
-            echo "CONN_STR_BASE64=$(echo -n "$CONN_STR" | base64 -w0)" >> $GITHUB_ENV
-            echo "STORAGE_ACCOUNT=$(terraform output -raw storage_account_name)" >> $GITHUB_ENV
+        run: terraform output -raw storage_connection_string > storage_conn_str.txt
 
-      - name: Terraform Apply Function Module
+      - name: Terraform Apply Function Module with real connection string
         working-directory: terraform/${{ matrix.env }}/infra
         run: |
-   
-          STORAGE_CONN_STR=$(echo "${{ env.CONN_STR_BASE64 }}" | base64 --decode)
-          terraform apply -auto-approve \
-          -var-file=terraform.tfvars \
-          -var="deploy_eventgrid=false" \
-          -var="storage_connection_string=$STORAGE_CONN_STR" \
-          -var="storage_account_name=${{ env.STORAGE_ACCOUNT }}" \
-          -target=module.function.azurerm_function_app.func \
-          -target=module.function.azurerm_service_plan.plan
+          STORAGE_CONN_STR=$(cat storage_conn_str.txt)
+          terraform apply -auto-approve -var-file=terraform.tfvars -var="deploy_eventgrid=false" -var="storage_connection_string=$STORAGE_CONN_STR" \
+            -target=module.function.azurerm_function_app.func \
+            -target=module.function.azurerm_app_service_plan.plan \
+            -target=module.function.azurerm_storage_account.function_sa
 
       - name: Install Azure Functions Core Tools
         run: sudo npm install -g azure-functions-core-tools@4 --unsafe-perm true
@@ -105,6 +94,7 @@ jobs:
         working-directory: function-code
         run: func azure functionapp publish process-file-func --python
 
+      # Step 2: Deploy EventGrid + Remaining Infrastructure
       - name: Terraform Apply (Remaining Infrastructure)
         if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
         working-directory: terraform/${{ matrix.env }}/infra
