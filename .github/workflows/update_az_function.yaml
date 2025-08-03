@@ -57,6 +57,8 @@ jobs:
             --account-name ${{ steps.get_storage_name.outputs.storage_account_name }} \
             --query '[0].value' -o tsv)
           echo "storage_key=$STORAGE_KEY" >> $GITHUB_OUTPUT
+     
+      # Step  Infrastructure
 
       - name: Update Function App Setting STORAGE_CONN
         run: |
