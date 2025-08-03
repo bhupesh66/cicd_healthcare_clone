@@ -58,14 +58,13 @@ jobs:
       - name: Get storage account name from terraform output
         id: get_storage_name
         working-directory: terraform/dev/infra
-        # This command uses 'grep' with a regex to specifically extract a string
-        # that is a valid Azure storage account name (3-24 lowercase letters and numbers),
-        # filtering out any debug messages or unwanted text.
+        # This command is more robust. It captures all output, filters out debug messages,
+        # and then extracts the last line, which should be the clean storage account name.
         run: |
-          OUTPUT=$(terraform output -raw storage_account_name)
-          STORAGE_ACCOUNT_NAME=$(echo "$OUTPUT" | grep -o -E '[a-z0-9]{3,24}')
+          OUTPUT=$(terraform output storage_account_name 2>&1)
+          STORAGE_ACCOUNT_NAME=$(echo "$OUTPUT" | grep -v '::debug::' | tail -n 1)
           if [ -z "$STORAGE_ACCOUNT_NAME" ]; then
-            echo "Error: The 'storage_account_name' output variable is empty or invalid. This may be due to a missing or corrupt Terraform state file, or the output variable does not exist."
+            echo "Error: The 'storage_account_name' output variable is empty. This may be due to a missing or corrupt Terraform state file, or the output variable does not exist."
             echo "Please ensure the Terraform code has an output block for 'storage_account_name' and the 'terraform init' step is successful."
             exit 1
           fi
