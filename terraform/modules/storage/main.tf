@@ -40,10 +40,11 @@ output "storage_account_id" {
   value = azurerm_storage_account.storage.id
 }
 
-output "storage_account_name" {
-  value = azurerm_storage_account.storage.name
-}
+
 
 output "containers" {
   value = { for name, container in azurerm_storage_container.containers : name => container.name }
+}
+output "storage_account_name" {
+  value = azurerm_storage_account.storage.name
 }

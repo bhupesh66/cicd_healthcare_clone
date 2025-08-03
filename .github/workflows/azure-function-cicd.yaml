@@ -15,6 +15,7 @@ jobs:
 
     env:
       RESOURCE_GROUP_NAME: healthcare_project
+      FUNCTION_APP_NAME: process-file-func
 
     steps:
       - name: Checkout repository
@@ -79,12 +80,30 @@ jobs:
             -target=module.function.azurerm_app_service_plan.plan \
             -target=module.function.azurerm_storage_account.function_sa
 
+      # Get Storage Account Name from Terraform outputs
+      - name: Get Storage Account Name
+        id: get_storage
+        working-directory: terraform/${{ matrix.env }}/infra
+        run: echo "storage_account_name=$(terraform output -raw storage_account_name)" >> $GITHUB_ENV
+
+      # Get Storage Account Connection String from Azure CLI
+      - name: Get Storage Account Connection String
+        id: get_storage_conn
+        run: |
+          CONNECTION_STRING=$(az storage account show-connection-string --resource-group ${{ env.RESOURCE_GROUP_NAME }} --name ${{ env.storage_account_name }} --query connectionString -o tsv)
+          echo "storage_conn=$CONNECTION_STRING" >> $GITHUB_ENV
+
+      # Update Azure Function App Setting STORAGE_CONN with connection string
+      - name: Update Function App Setting STORAGE_CONN
+        run: |
+          az functionapp config appsettings set --name ${{ env.FUNCTION_APP_NAME }} --resource-group ${{ env.RESOURCE_GROUP_NAME }} --settings STORAGE_CONN=${{ env.storage_conn }}
+
       - name: Install Azure Functions Core Tools
         run: sudo npm install -g azure-functions-core-tools@4 --unsafe-perm true
 
       - name: Publish Azure Function Code
         working-directory: function-code
-        run: func azure functionapp publish process-file-func --python
+        run: func azure functionapp publish ${{ env.FUNCTION_APP_NAME }} --python
 
       # Step 2: Deploy EventGrid + Remaining Infrastructure
       - name: Terraform Apply (Remaining Infrastructure)
