@@ -1,0 +1,54 @@
+name: Update Azure Function App Setting
+
+on:
+  workflow_run:
+    workflows: ["Deploy Azure Function Infrastructure"]
+    types:
+      - completed
+
+  push:
+    branches:
+      - dev
+       
+    paths:
+      - '.github/workflows/update_az_function.yaml'
+
+  workflow_dispatch:
+
+jobs:
+  update_function_app_setting:
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name != 'workflow_run' }}
+    runs-on: ubuntu-latest
+
+    env:
+      RESOURCE_GROUP_NAME: healthcare_project
+      FUNCTION_APP_NAME: process-file-func
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Download storage info artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: storage-info
+          path: ./storage-info
+
+      - name: Read storage info variables
+        id: read_storage_info
+        run: |
+          source ./storage-info/storage-info.txt
+          echo "STORAGE_CONN=$STORAGE_CONN"
+          echo "storage_conn=$STORAGE_CONN" >> $GITHUB_OUTPUT
+
+      - name: Update Function App Setting STORAGE_CONN
+        run: |
+          az functionapp config appsettings set \
+            --name ${{ env.FUNCTION_APP_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
+            --settings STORAGE_CONN="${{ steps.read_storage_info.outputs.storage_conn }}"
