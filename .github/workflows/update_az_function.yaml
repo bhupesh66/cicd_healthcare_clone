@@ -51,12 +51,30 @@ jobs:
         with:
           terraform_version: 1.5.7
 
+      - name: Terraform Init
+        working-directory: terraform/dev/infra
+        run: terraform init
+
       - name: Get storage account name from terraform output
         id: get_storage_name
         working-directory: terraform/dev/infra
-        # The '2> /dev/null' at the end redirects any debug output to prevent it from interfering with the Terraform output.
+        # This command is more robust. It uses 'jq' to parse the JSON output of 'terraform output'
+        # and checks if the 'storage_account_name' variable exists before attempting to use it.
+        # This prevents the step from failing with a generic 'exit code 1' error if the output is missing.
         run: |
-          STORAGE_ACCOUNT_NAME=$(terraform output -raw storage_account_name 2> /dev/null)
+          OUTPUT_JSON=$(terraform output -json 2> /dev/null || true)
+          if [ -z "$OUTPUT_JSON" ]; then
+            echo "Error: 'terraform output -json' failed to produce any output. The Terraform state file may be missing or corrupt."
+            exit 1
+          fi
+
+          STORAGE_ACCOUNT_NAME=$(echo "$OUTPUT_JSON" | jq -r '.storage_account_name.value')
+          if [ "$STORAGE_ACCOUNT_NAME" == "null" ] || [ -z "$STORAGE_ACCOUNT_NAME" ]; then
+            echo "Error: The 'storage_account_name' output variable could not be found in the Terraform state."
+            echo "Please ensure the Terraform code has an output block for 'storage_account_name'."
+            exit 1
+          fi
+
           echo "Storage account name is: $STORAGE_ACCOUNT_NAME"
           echo "storage_account_name=$STORAGE_ACCOUNT_NAME" >> $GITHUB_OUTPUT
 
