@@ -47,6 +47,3 @@ output "storage_account_name" {
 output "containers" {
   value = { for name, container in azurerm_storage_container.containers : name => container.name }
 }
-output "storage_connection_string" {
-  value = azurerm_storage_account.storage.primary_connection_string
-}
