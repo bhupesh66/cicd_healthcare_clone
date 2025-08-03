@@ -78,23 +78,25 @@ jobs:
         id: get_conn_str
         working-directory: terraform/${{ matrix.env }}/infra
         run: |
-          # Store raw connection string in a temporary file
-          terraform output -raw storage_connection_string > conn_str.txt
-          # Encode to base64 and store in environment variable
-          echo "CONN_STR_BASE64=$(base64 -w0 conn_str.txt)" >> $GITHUB_ENV
-          # Clean up
-          rm conn_str.txt
+            
+    
+            # Get and encode the connection string
+            CONN_STR=$(terraform output -raw storage_connection_string)
+            echo "CONN_STR_BASE64=$(echo -n "$CONN_STR" | base64 -w0)" >> $GITHUB_ENV
+            echo "STORAGE_ACCOUNT=$(terraform output -raw storage_account_name)" >> $GITHUB_ENV
 
-      - name: Terraform Apply Function Module with real connection string
+      - name: Terraform Apply Function Module
         working-directory: terraform/${{ matrix.env }}/infra
         run: |
-          # Decode the base64 connection string
+   
           STORAGE_CONN_STR=$(echo "${{ env.CONN_STR_BASE64 }}" | base64 --decode)
-          # Apply with the real connection string
-          terraform apply -auto-approve -var-file=terraform.tfvars -var="deploy_eventgrid=false" -var="storage_connection_string=$STORAGE_CONN_STR" \
-            -target=module.function.azurerm_function_app.func \
-            -target=module.function.azurerm_app_service_plan.plan \
-            -target=module.function.azurerm_storage_account.function_sa
+          terraform apply -auto-approve \
+          -var-file=terraform.tfvars \
+          -var="deploy_eventgrid=false" \
+          -var="storage_connection_string=$STORAGE_CONN_STR" \
+          -var="storage_account_name=${{ env.STORAGE_ACCOUNT }}" \
+          -target=module.function.azurerm_function_app.func \
+          -target=module.function.azurerm_service_plan.plan
 
       - name: Install Azure Functions Core Tools
         run: sudo npm install -g azure-functions-core-tools@4 --unsafe-perm true
