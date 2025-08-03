@@ -69,24 +69,24 @@ jobs:
         working-directory: terraform/${{ matrix.env }}/infra
         run: terraform validate
 
-
-      - name: Terraform Apply (Function Infra Only)
-        if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
+      - name: Terraform Apply Storage Account (with dummy var)
         working-directory: terraform/${{ matrix.env }}/infra
         run: |
           terraform apply -auto-approve -var-file=terraform.tfvars -var="deploy_eventgrid=false" -var="storage_connection_string=dummy" -target=module.storage.azurerm_storage_account.storage
 
-             
+      - name: Get Storage Connection String output
+        id: get_conn_str
+        working-directory: terraform/${{ matrix.env }}/infra
+        run: echo "::set-output name=conn_str::$(terraform output -raw storage_connection_string)"
 
-      # Step 1: Deploy Function Infra Only (no EventGrid)
-      - name: Terraform Apply (Function Infra Only)
-        if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
+      - name: Terraform Apply Function Module with real connection string
         working-directory: terraform/${{ matrix.env }}/infra
         run: |
-          terraform apply -auto-approve -var-file=terraform.tfvars -var="deploy_eventgrid=false" \
-            -target=module.function.azurerm_function_app.func \
-            -target=module.function.azurerm_app_service_plan.plan \
-            -target=module.function.azurerm_storage_account.function_sa
+              terraform apply -auto-approve -var-file=terraform.tfvars -var="deploy_eventgrid=false" -var="storage_connection_string=${{ steps.get_conn_str.outputs.conn_str }}" \
+              -target=module.function.azurerm_function_app.func \
+               -target=module.function.azurerm_app_service_plan.plan \
+                 -target=module.function.azurerm_storage_account.function_sa
+
 
       - name: Install Azure Functions Core Tools
         run: sudo npm install -g azure-functions-core-tools@4 --unsafe-perm true
