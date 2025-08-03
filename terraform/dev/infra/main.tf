@@ -55,6 +55,7 @@ module "function" {
   function_storage_account  = var.function_storage_account
   log_analytics_workspace   = module.log_analytics.workspace_id
   storage_connection_string = var.storage_connection_string
+  storage_account_id      = module.storage.storage_account_id
   # Removed servicebus_connection_string and servicebus_queue_name
 }
 

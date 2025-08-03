@@ -24,3 +24,6 @@ variable "storage_connection_string" {
   description = "Connection string for storage account"
 }
 
+variable "storage_account_id" {
+  type = string
+}
