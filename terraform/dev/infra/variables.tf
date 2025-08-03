@@ -7,7 +7,7 @@ variable "storage_account_name" {}
 
 
 variable "servicebus_namespace" {}
-variable "servicebus_queue" { default = "airflowqueue" }
+variable "servicebus_queue" {}
 
 variable "function_name" {}
 variable "function_storage_account" { type = string }
