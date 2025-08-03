@@ -7,8 +7,9 @@ on:
       - completed
 
   push:
-    branches:
-      - dev
+   branches:
+    - dev
+    - feature1
        
     paths:
       - '.github/workflows/update_az_function.yaml'
@@ -34,7 +35,7 @@ jobs:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Download storage info artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: storage-info
           path: ./storage-info
