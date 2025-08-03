@@ -77,16 +77,15 @@ jobs:
       - name: Get Storage Connection String output
         id: get_conn_str
         working-directory: terraform/${{ matrix.env }}/infra
-        run: echo "::set-output name=conn_str::$(terraform output -raw storage_connection_string)"
+        run: echo "conn_str=$(terraform output -raw storage_connection_string)" >> $GITHUB_ENV
 
       - name: Terraform Apply Function Module with real connection string
         working-directory: terraform/${{ matrix.env }}/infra
         run: |
-              terraform apply -auto-approve -var-file=terraform.tfvars -var="deploy_eventgrid=false" -var="storage_connection_string=${{ steps.get_conn_str.outputs.conn_str }}" \
-              -target=module.function.azurerm_function_app.func \
-               -target=module.function.azurerm_app_service_plan.plan \
-                 -target=module.function.azurerm_storage_account.function_sa
-
+          terraform apply -auto-approve -var-file=terraform.tfvars -var="deploy_eventgrid=false" -var="storage_connection_string=${{ env.conn_str }}" \
+            -target=module.function.azurerm_function_app.func \
+            -target=module.function.azurerm_app_service_plan.plan \
+            -target=module.function.azurerm_storage_account.function_sa
 
       - name: Install Azure Functions Core Tools
         run: sudo npm install -g azure-functions-core-tools@4 --unsafe-perm true
@@ -95,7 +94,6 @@ jobs:
         working-directory: function-code
         run: func azure functionapp publish process-file-func --python
 
-      # Step 2: Deploy EventGrid + Remaining Infrastructure
       - name: Terraform Apply (Remaining Infrastructure)
         if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
         working-directory: terraform/${{ matrix.env }}/infra
