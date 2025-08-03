@@ -78,13 +78,20 @@ jobs:
         id: get_conn_str
         working-directory: terraform/${{ matrix.env }}/infra
         run: |
-            printf "conn_str_base64=%s\n" "$(terraform output -raw storage_connection_string | base64)" >> $GITHUB_ENV
+          # Store raw connection string in a temporary file
+          terraform output -raw storage_connection_string > conn_str.txt
+          # Encode to base64 and store in environment variable
+          echo "CONN_STR_BASE64=$(base64 -w0 conn_str.txt)" >> $GITHUB_ENV
+          # Clean up
+          rm conn_str.txt
 
       - name: Terraform Apply Function Module with real connection string
         working-directory: terraform/${{ matrix.env }}/infra
         run: |
-            STORAGE_CONN_STR=$(echo "${{ env.conn_str_base64 }}" | base64 --decode)
-            terraform apply -auto-approve -var-file=terraform.tfvars -var="deploy_eventgrid=false" -var="storage_connection_string=$STORAGE_CONN_STR" \
+          # Decode the base64 connection string
+          STORAGE_CONN_STR=$(echo "${{ env.CONN_STR_BASE64 }}" | base64 --decode)
+          # Apply with the real connection string
+          terraform apply -auto-approve -var-file=terraform.tfvars -var="deploy_eventgrid=false" -var="storage_connection_string=$STORAGE_CONN_STR" \
             -target=module.function.azurerm_function_app.func \
             -target=module.function.azurerm_app_service_plan.plan \
             -target=module.function.azurerm_storage_account.function_sa
