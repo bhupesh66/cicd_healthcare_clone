@@ -9,7 +9,7 @@ on:
   push:
     branches:
       - dev
-       
+      - feature1
     paths:
       - '.github/workflows/update_az_function.yaml'
 
@@ -33,22 +33,36 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Download storage info artifact
-        uses: actions/download-artifact@v3
+      - name: Setup Terraform CLI
+        uses: hashicorp/setup-terraform@v2
         with:
-          name: storage-info
-          path: ./storage-info
+          terraform_version: 1.5.7
 
-      - name: Read storage info variables
-        id: read_storage_info
+      - name: Terraform Init
+        working-directory: terraform/dev/infra
+        run: terraform init
+
+      - name: Terraform Get Storage Account Name
+        id: get_storage_name
+        working-directory: terraform/dev/infra
         run: |
-          source ./storage-info/storage-info.txt
-          echo "STORAGE_CONN=$STORAGE_CONN"
-          echo "storage_conn=$STORAGE_CONN" >> $GITHUB_OUTPUT
+          STORAGE_ACCOUNT_NAME=$(terraform output -raw storage_account_name)
+          echo "storage_account_name=$STORAGE_ACCOUNT_NAME" >> $GITHUB_OUTPUT
+
+      - name: Get Storage Account Key
+        id: get_storage_key
+        run: |
+          STORAGE_KEY=$(az storage account keys list \
+            --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
+            --account-name ${{ steps.get_storage_name.outputs.storage_account_name }} \
+            --query '[0].value' -o tsv)
+          echo "storage_key=$STORAGE_KEY" >> $GITHUB_OUTPUT
 
       - name: Update Function App Setting STORAGE_CONN
         run: |
+          STORAGE_CONN="DefaultEndpointsProtocol=https;AccountName=${{ steps.get_storage_name.outputs.storage_account_name }};AccountKey=${{ steps.get_storage_key.outputs.storage_key }};EndpointSuffix=core.windows.net"
+
           az functionapp config appsettings set \
             --name ${{ env.FUNCTION_APP_NAME }} \
             --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
-            --settings STORAGE_CONN="${{ steps.read_storage_info.outputs.storage_conn }}"
+            --settings STORAGE_CONN="$STORAGE_CONN"
