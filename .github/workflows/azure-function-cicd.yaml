@@ -44,11 +44,6 @@ jobs:
           echo "TF_VAR_ACR_TENANT_ID=${{ secrets.ACR_TENANT_ID }}" >> $GITHUB_ENV
           echo "TF_VAR_resource_group_name=${{ env.RESOURCE_GROUP_NAME }}" >> $GITHUB_ENV
 
-      - name: Setup Terraform CLI
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: 1.5.7
-
       - name: Break Terraform State Lease (optional)
         continue-on-error: true
         run: |
@@ -57,6 +52,11 @@ jobs:
             --container-name tfstate \
             --blob-name terraform.tfstate \
             --auth-mode login || echo "Skipping lease break"
+
+      - name: Setup Terraform CLI
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.7
 
       - name: Terraform Init
         working-directory: terraform/${{ matrix.env }}/infra
@@ -93,30 +93,40 @@ jobs:
         working-directory: terraform/${{ matrix.env }}/infra
         run: terraform apply -auto-approve -var-file=terraform.tfvars -var="deploy_eventgrid=true"
 
-      # Step 3: Get Storage Account Name
+      # ✅ Step 3: Get Storage Account Name (safely outputs to be reused)
       - name: Get Storage Account Name
         id: get_storage_name
         working-directory: terraform/${{ matrix.env }}/infra
         run: |
           STORAGE_NAME=$(terraform output -raw storage_account_name | tr -d '\n\r')
+          echo "::set-output name=name::$STORAGE_NAME"
           echo "storage_account_name=$STORAGE_NAME" >> $GITHUB_ENV
-          echo "Storage account name: $STORAGE_NAME"
+        shell: bash
 
-      # Step 4: Get Connection String
+      # ✅ Step 4: Get Storage Connection String using output from previous step
       - name: Get Storage Account Connection String
         id: get_storage_conn
         run: |
-          echo "Fetching connection string for: ${{ env.storage_account_name }}"
+          STORAGE_NAME=${{ steps.get_storage_name.outputs.name }}
+          echo "Fetching connection string for: $STORAGE_NAME"
+
           CONNECTION_STRING=$(az storage account show-connection-string \
             --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
-            --name ${{ env.storage_account_name }} \
+            --name $STORAGE_NAME \
             --query connectionString -o tsv)
-          echo "storage_conn=$CONNECTION_STRING" >> $GITHUB_ENV
 
-      # Step 5: Update Function App Setting
+          echo "::set-output name=conn::$CONNECTION_STRING"
+          echo "storage_conn=$CONNECTION_STRING" >> $GITHUB_ENV
+        shell: bash
+
+      # ✅ Step 5: Update Function App Setting with the Connection String
       - name: Set Azure Function STORAGE_CONN App Setting
         run: |
+          CONNECTION_STRING=${{ steps.get_storage_conn.outputs.conn }}
+          echo "Setting STORAGE_CONN to: $CONNECTION_STRING"
+
           az functionapp config appsettings set \
             --name ${{ env.FUNCTION_APP_NAME }} \
             --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
-            --settings STORAGE_CONN="${{ env.storage_conn }}"
+            --settings STORAGE_CONN="$CONNECTION_STRING"
+        shell: bash
