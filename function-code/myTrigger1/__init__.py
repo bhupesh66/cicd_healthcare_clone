@@ -92,7 +92,7 @@ import azure.functions as func
 
 # Environment variables
 STORAGE_CONN = os.getenv("STORAGE_CONN")
-CONTAINER_NAME = "your-container"  # Replace with your actual container name
+CONTAINER_NAME = "incoming"  # Replace with your actual container name
 
 def main(event: func.EventGridEvent):
     try:
