@@ -92,7 +92,7 @@ import azure.functions as func
 
 # Environment variables
 STORAGE_CONN = os.getenv("STORAGE_CONN")
-CONTAINER_NAME = "incoming"  # Replace with your actual container name
+CONTAINER_NAME = "incoming"  # Your actual container name
 
 def main(event: func.EventGridEvent):
     try:
@@ -113,16 +113,15 @@ def main(event: func.EventGridEvent):
             "demo": f"demo/{company}/{company}demo{period}.csv"
         }
 
-        # All 3 dependencies regardless of which file triggered the function
         dependencies = list(expected_files.values())
 
-        # Check blob existence
+        # Set up Blob client
         blob_client = BlobServiceClient.from_connection_string(STORAGE_CONN)
         container_client = blob_client.get_container_client(CONTAINER_NAME)
 
         missing = []
         for path in dependencies:
-            full_path = f"incoming/dassscrub/{path}"
+            full_path = f"dassscrub/{path}"  # ✅ Fixed: don't include "incoming" again
             try:
                 if not container_client.get_blob_client(full_path).exists():
                     missing.append(full_path)
@@ -131,11 +130,11 @@ def main(event: func.EventGridEvent):
                 missing.append(full_path)
 
         if not missing:
-            logging.info(f"All dependencies exist for {company} - {period}.")
-            # Optionally trigger further downstream logic here
+            logging.info(f"✅ All dependencies exist for {company} - {period}.")
+            # TODO: Trigger downstream logic (Service Bus, Airflow, etc.)
         else:
-            logging.warning(f" Missing dependencies for {company} - {period}: {missing}")
+            logging.warning(f"⚠️ Missing dependencies for {company} - {period}: {missing}")
 
     except Exception as e:
-        logging.error(f" Error processing event: {e}")
-        raise  # Re-raise to notify Event Grid of failure
+        logging.error(f"❌ Error processing event: {e}")
+        raise  # Let Event Grid know the delivery failed
