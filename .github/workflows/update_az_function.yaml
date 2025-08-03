@@ -59,7 +59,7 @@ jobs:
         id: get_storage_name
         working-directory: terraform/dev/infra
         run: |
-          STORAGE_ACCOUNT_NAME=$(terraform output -raw storage_account_name | tr -d '\n')
+          STORAGE_ACCOUNT_NAME=$(terraform output -raw storage_account_name)
           echo "Storage account name is: $STORAGE_ACCOUNT_NAME"
           echo "storage_account_name=$STORAGE_ACCOUNT_NAME" >> $GITHUB_OUTPUT
 
