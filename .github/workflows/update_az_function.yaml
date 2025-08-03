@@ -1,17 +1,24 @@
-name: Deploy Azure Function Infrastructure
+name: Update Azure Function App Setting
 
 on:
+  workflow_run:
+    workflows: ["Deploy Azure Function Infrastructure"]
+    types:
+      - completed
+
   push:
     branches:
       - dev
+      - feature1
+    paths:
+      - '.github/workflows/update_az_function.yaml'
+
   workflow_dispatch:
 
 jobs:
-  terraform:
+  update_function_app_setting:
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name != 'workflow_run' }}
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        env: [dev]
 
     env:
       RESOURCE_GROUP_NAME: healthcare_project
@@ -21,88 +28,66 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # --- Azure Login and Environment Variable Setup ---
       - name: Azure Login
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Export ARM environment variables
+      - name: Export ARM and TF_VAR environment variables
         run: |
           echo "ARM_CLIENT_ID=${{ secrets.ACR_CLIENT_ID }}" >> $GITHUB_ENV
           echo "ARM_CLIENT_SECRET=${{ secrets.ACR_CLIENT_SECRET }}" >> $GITHUB_ENV
           echo "ARM_TENANT_ID=${{ secrets.ACR_TENANT_ID }}" >> $GITHUB_ENV
           echo "ARM_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
 
-      - name: Export Terraform input variables (TF_VAR_*)
-        run: |
           echo "TF_VAR_AZURE_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
           echo "TF_VAR_ACR_CLIENT_ID=${{ secrets.ACR_CLIENT_ID }}" >> $GITHUB_ENV
           echo "TF_VAR_ACR_CLIENT_SECRET=${{ secrets.ACR_CLIENT_SECRET }}" >> $GITHUB_ENV
           echo "TF_VAR_ACR_TENANT_ID=${{ secrets.ACR_TENANT_ID }}" >> $GITHUB_ENV
           echo "TF_VAR_resource_group_name=${{ env.RESOURCE_GROUP_NAME }}" >> $GITHUB_ENV
 
-      # --- Terraform Setup and Deployment ---
       - name: Setup Terraform CLI
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: 1.5.7
 
       - name: Terraform Init
-        working-directory: terraform/${{ matrix.env }}/infra
+        working-directory: terraform/dev/infra
         run: terraform init
 
-      - name: Terraform Format Check
-        working-directory: terraform/${{ matrix.env }}/infra
-        run: terraform fmt -check
-
-      - name: Terraform Validate
-        working-directory: terraform/${{ matrix.env }}/infra
-        run: terraform validate
-
-      # Step 1: Deploy the core Function Infrastructure (Function App and Storage Account)
-      - name: Terraform Apply (Function Infra Only)
-        if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
-        working-directory: terraform/${{ matrix.env }}/infra
+      - name: Get storage account name from terraform output
+        id: get_storage_name
+        working-directory: terraform/dev/infra
+        # This command uses 'tr -d' to strip all whitespace from the raw output,
+        # ensuring only the storage account name is captured.
         run: |
-          # Apply only the function and its storage account using -target.
-          # The deploy_eventgrid variable is set to false for this initial pass.
-          terraform apply -auto-approve -var-file=terraform.tfvars -var="deploy_eventgrid=false" \
-            -target=module.function.azurerm_function_app.func \
-            -target=module.function.azurerm_app_service_plan.plan \
-            -target=module.function.azurerm_storage_account.function_sa
+          STORAGE_ACCOUNT_NAME=$(terraform output -raw storage_account_name | tr -d '[:space:]')
+          if [ -z "$STORAGE_ACCOUNT_NAME" ]; then
+            echo "Error: The 'storage_account_name' output variable is empty. This may be due to a missing or corrupt Terraform state file, or the output variable does not exist."
+            echo "Please ensure the Terraform code has an output block for 'storage_account_name' and the 'terraform init' step is successful."
+            exit 1
+          fi
+          echo "Storage account name is: $STORAGE_ACCOUNT_NAME"
+          echo "storage_account_name=$STORAGE_ACCOUNT_NAME" >> $GITHUB_OUTPUT
 
-      # Step 2: Get the Storage Account Connection String directly from Terraform outputs
-      - name: Get Storage Account Connection String from Terraform
-        id: get_storage_conn
-        working-directory: terraform/${{ matrix.env }}/infra
-        # We assume the Terraform module has an output for the connection string.
-        # This is more reliable than using the Azure CLI.
+      - name: Get storage account key
+        id: get_storage_key
         run: |
-          STORAGE_CONN_STRING=$(terraform output -raw storage_account_connection_string)
-          echo "storage_conn=$STORAGE_CONN_STRING" >> $GITHUB_OUTPUT
+          STORAGE_ACCOUNT_NAME=${{ steps.get_storage_name.outputs.storage_account_name }}
+          STORAGE_KEY=$(az storage account keys list \
+            --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
+            --account-name "$STORAGE_ACCOUNT_NAME" \
+            --query '[0].value' -o tsv)
+          echo "storage_key=$STORAGE_KEY" >> $GITHUB_OUTPUT
 
-      # Step 3: Update Azure Function App Setting STORAGE_CONN
-      - name: Update Function App Setting STORAGE_CONN
+      - name: Update Azure Function App Setting STORAGE_CONN
         run: |
+          STORAGE_ACCOUNT_NAME=${{ steps.get_storage_name.outputs.storage_account_name }}
+          STORAGE_KEY=${{ steps.get_storage_key.outputs.storage_key }}
+
+          STORAGE_CONN="DefaultEndpointsProtocol=https;AccountName=$STORAGE_ACCOUNT_NAME;AccountKey=$STORAGE_KEY;EndpointSuffix=core.windows.net"
+
           az functionapp config appsettings set \
             --name ${{ env.FUNCTION_APP_NAME }} \
             --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
-            --settings "STORAGE_CONN=${{ steps.get_storage_conn.outputs.storage_conn }}"
-
-      # Step 4: Install Azure Functions Core Tools and publish the code
-      - name: Install Azure Functions Core Tools
-        run: sudo npm install -g azure-functions-core-tools@4 --unsafe-perm true
-
-      - name: Publish Azure Function Code
-        working-directory: function-code
-        run: func azure functionapp publish ${{ env.FUNCTION_APP_NAME }} --python
-
-      # Step 5: Deploy the remaining infrastructure (e.g., EventGrid)
-      - name: Terraform Apply (Remaining Infrastructure)
-        if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
-        working-directory: terraform/${{ matrix.env }}/infra
-        run: |
-          # The full apply will now deploy the EventGrid and any other
-          # resources that were not targeted in the first apply.
-          terraform apply -auto-approve -var-file=terraform.tfvars -var="deploy_eventgrid=true"
+            --settings STORAGE_CONN="$STORAGE_CONN"
