@@ -55,21 +55,24 @@ jobs:
         working-directory: terraform/dev/infra
         run: terraform init
 
-      - name: Get Storage Account Name
-        id: get_storage_name
-        working-directory: terraform/dev/infra
-        run: |
-              x=$(terraform output -raw storage_account_name | tr -d '\n')
-              echo "storage_account_name=$x" >> $GITHUB_OUTPUT
+      -  name: Get storage account name from terraform
+         id: get_storage_name
+         working-directory: terraform/dev/infra
+         run: |
+               STORAGE_ACCOUNT_NAME=$(terraform output -raw storage_account_name | tr -d '\n')
+               echo "storage_account_name=$STORAGE_ACCOUNT_NAME" >> $GITHUB_OUTPUT
 
-      - name: Get Storage Account Key
+
+
+      - name: Get storage account key
         id: get_storage_key
         run: |
-          storage_key=$(az storage account keys list \
-            --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
-            --account-name ${{ steps.get_storage_name.outputs.storage_account_name }} \
-            --query '[0].value' -o tsv)
-          echo "storage_key=$storage_key" >> $GITHUB_OUTPUT
+              STORAGE_ACCOUNT_NAME=${{ steps.get_storage_name.outputs.storage_account_name }}
+              STORAGE_KEY=$(az storage account keys list \
+               --resource-group healthcare_project \
+               --account-name "$STORAGE_ACCOUNT_NAME" \
+              --query '[0].value' -o tsv)
+               echo "storage_key=$STORAGE_KEY" >> $GITHUB_OUTPUT
 
       - name: Update Azure Function App Setting STORAGE_CONN
         run: |
