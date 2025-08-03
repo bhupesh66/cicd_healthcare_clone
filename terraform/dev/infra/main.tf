@@ -26,14 +26,14 @@ module "storage" {
 
 
 # Service Bus
-# module "servicebus" {
-#   source                  = "../../modules/servicebus"
-#   resource_group_name     = data.azurerm_resource_group.rg.name
-#   location                = var.location
-#   namespace_name          = var.servicebus_namespace
-#   queue_name              = var.servicebus_queue
-#   log_analytics_workspace = module.log_analytics.workspace_id
-# }
+module "servicebus" {
+  source                  = "../../modules/servicebus"
+  resource_group_name     = data.azurerm_resource_group.rg.name
+  location                = var.location
+  namespace_name          = var.servicebus_namespace
+  queue_name              = var.servicebus_queue
+  log_analytics_workspace = module.log_analytics.workspace_id
+}
 
 # Azure Function (to process files)
 # module "function" {
@@ -55,6 +55,8 @@ module "function" {
   function_storage_account  = var.function_storage_account
   log_analytics_workspace   = module.log_analytics.workspace_id
   storage_connection_string = var.storage_connection_string
+  servicebus_connection_string = module.servicebus.connection_string
+  servicebus_queue_name        = var.servicebus_queue
   # Removed servicebus_connection_string and servicebus_queue_name
 }
 

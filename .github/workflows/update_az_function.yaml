@@ -33,6 +33,19 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      - name: Export ARM and TF_VAR environment variables
+        run: |
+          echo "ARM_CLIENT_ID=${{ secrets.ACR_CLIENT_ID }}" >> $GITHUB_ENV
+          echo "ARM_CLIENT_SECRET=${{ secrets.ACR_CLIENT_SECRET }}" >> $GITHUB_ENV
+          echo "ARM_TENANT_ID=${{ secrets.ACR_TENANT_ID }}" >> $GITHUB_ENV
+          echo "ARM_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
+
+          echo "TF_VAR_AZURE_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
+          echo "TF_VAR_ACR_CLIENT_ID=${{ secrets.ACR_CLIENT_ID }}" >> $GITHUB_ENV
+          echo "TF_VAR_ACR_CLIENT_SECRET=${{ secrets.ACR_CLIENT_SECRET }}" >> $GITHUB_ENV
+          echo "TF_VAR_ACR_TENANT_ID=${{ secrets.ACR_TENANT_ID }}" >> $GITHUB_ENV
+          echo "TF_VAR_resource_group_name=${{ env.RESOURCE_GROUP_NAME }}" >> $GITHUB_ENV
+
       - name: Setup Terraform CLI
         uses: hashicorp/setup-terraform@v2
         with:
@@ -42,25 +55,38 @@ jobs:
         working-directory: terraform/dev/infra
         run: terraform init
 
-      - name: Terraform Get Storage Account Name
+      - name: Get storage account name from terraform output
         id: get_storage_name
         working-directory: terraform/dev/infra
+        # This command is more robust. It captures all output, filters out debug messages,
+        # and then extracts the last line, which should be the clean storage account name.
         run: |
-          STORAGE_ACCOUNT_NAME=$(terraform output -raw storage_account_name)
+          OUTPUT=$(terraform output storage_account_name 2>&1)
+          STORAGE_ACCOUNT_NAME=$(echo "$OUTPUT" | grep -v '::debug::' | tail -n 1)
+          if [ -z "$STORAGE_ACCOUNT_NAME" ]; then
+            echo "Error: The 'storage_account_name' output variable is empty. This may be due to a missing or corrupt Terraform state file, or the output variable does not exist."
+            echo "Please ensure the Terraform code has an output block for 'storage_account_name' and the 'terraform init' step is successful."
+            exit 1
+          fi
+          echo "Storage account name is: $STORAGE_ACCOUNT_NAME"
           echo "storage_account_name=$STORAGE_ACCOUNT_NAME" >> $GITHUB_OUTPUT
 
-      - name: Get Storage Account Key
+      - name: Get storage account key
         id: get_storage_key
         run: |
+          STORAGE_ACCOUNT_NAME=${{ steps.get_storage_name.outputs.storage_account_name }}
           STORAGE_KEY=$(az storage account keys list \
             --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
-            --account-name ${{ steps.get_storage_name.outputs.storage_account_name }} \
+            --account-name "$STORAGE_ACCOUNT_NAME" \
             --query '[0].value' -o tsv)
           echo "storage_key=$STORAGE_KEY" >> $GITHUB_OUTPUT
 
-      - name: Update Function App Setting STORAGE_CONN
+      - name: Update Azure Function App Setting STORAGE_CONN
         run: |
-          STORAGE_CONN="DefaultEndpointsProtocol=https;AccountName=${{ steps.get_storage_name.outputs.storage_account_name }};AccountKey=${{ steps.get_storage_key.outputs.storage_key }};EndpointSuffix=core.windows.net"
+          STORAGE_ACCOUNT_NAME=${{ steps.get_storage_name.outputs.storage_account_name }}
+          STORAGE_KEY=${{ steps.get_storage_key.outputs.storage_key }}
+
+          STORAGE_CONN="DefaultEndpointsProtocol=https;AccountName=$STORAGE_ACCOUNT_NAME;AccountKey=$STORAGE_KEY;EndpointSuffix=core.windows.net"
 
           az functionapp config appsettings set \
             --name ${{ env.FUNCTION_APP_NAME }} \
