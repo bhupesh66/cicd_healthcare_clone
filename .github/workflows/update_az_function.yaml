@@ -58,7 +58,7 @@ jobs:
       - name: Get storage account name from terraform output
         id: get_storage_name
         working-directory: terraform/dev/infra
-        # This command is more robust. It captures all output, filters out debug messages,
+        # This command is more robust. It captures all output, filters out debug messages,,
         # and then extracts the last line, which should be the clean storage account name.
         run: |
           OUTPUT=$(terraform output storage_account_name 2>&1)
