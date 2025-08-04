@@ -17,9 +17,7 @@ resource "azurerm_monitor_diagnostic_setting" "sb_diagnostics" {
   target_resource_id         = azurerm_servicebus_namespace.sb.id
   log_analytics_workspace_id = var.log_analytics_workspace
 
- enabled_log {
-    category = "StorageRead"
-  }
+
 
   metric {
     category = "AllMetrics"
