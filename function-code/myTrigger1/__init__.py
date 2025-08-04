@@ -148,7 +148,7 @@ import azure.functions as func
 
 # Environment variables
 STORAGE_CONN = os.getenv("STORAGE_CONN")
-SERVICEBUS_CONN = os.getenv("SERVICEBUS_CONN")  # ✅ Added
+SERVICEBUS_CONN = os.getenv("SERVICEBUS_CONNECTION_STRING")  # ✅ Added
 QUEUE_NAME = os.getenv("SERVICEBUS_QUEUE_NAME")  # ✅ Added
 CONTAINER_NAME = "incoming"  # Your actual container name
 
