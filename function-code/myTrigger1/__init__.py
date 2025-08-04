@@ -85,14 +85,73 @@
     # but raising an exception will mark it as failure, and no exception = success
 
 
+# working  code 
+
+# import logging
+# import os
+# from azure.storage.blob import BlobServiceClient
+# import azure.functions as func
+
+# # Environment variables
+# STORAGE_CONN = os.getenv("STORAGE_CONN")
+# CONTAINER_NAME = "incoming"  # Your actual container name
+
+# def main(event: func.EventGridEvent):
+#     try:
+#         logging.info('Event received: %s', event.get_json())
+#         data = event.get_json()
+#         blob_url = data['url']
+
+#         # Extract blob info
+#         blob_name = blob_url.split("/")[-1]  # e.g., xyzphar202502.csv
+#         company = blob_name[:3]              # e.g., xyz
+#         dataset_type = blob_name[3:7]        # e.g., phar
+#         period = blob_name[7:13]             # e.g., 202502
+
+#         # Mapping short dataset types to folders and filenames
+#         expected_files = {
+#             "phar": f"pharmacy/{company}/{company}phar{period}.csv",
+#             "medi": f"medical/{company}/{company}medi{period}.csv",
+#             "demo": f"demo/{company}/{company}demo{period}.csv"
+#         }
+
+#         dependencies = list(expected_files.values())
+
+#         # Set up Blob client
+#         blob_client = BlobServiceClient.from_connection_string(STORAGE_CONN)
+#         container_client = blob_client.get_container_client(CONTAINER_NAME)
+
+#         missing = []
+#         for path in dependencies:
+#             full_path = f"dassscrub/{path}"  # ✅ Fixed: don't include "incoming" again
+#             try:
+#                 if not container_client.get_blob_client(full_path).exists():
+#                     missing.append(full_path)
+#             except Exception as check_err:
+#                 logging.warning(f"Error checking blob {full_path}: {check_err}")
+#                 missing.append(full_path)
+
+#         if not missing:
+#             logging.info(f"✅ All dependencies exist for {company} - {period}.")
+#             # TODO: Trigger downstream logic (Service Bus, Airflow, etc.)
+#         else:
+#             logging.warning(f"⚠️ Missing dependencies for {company} - {period}: {missing}")
+
+#     except Exception as e:
+#         logging.error(f"❌ Error processing event: {e}")
+#         raise  # Let Event Grid know the delivery failed
 import logging
 import os
 from azure.storage.blob import BlobServiceClient
+from azure.servicebus import ServiceBusClient, ServiceBusMessage
 import azure.functions as func
 
-# Environment variables
+# Environment variables (set in your Function App Application Settings)
 STORAGE_CONN = os.getenv("STORAGE_CONN")
-CONTAINER_NAME = "incoming"  # Your actual container name
+SERVICEBUS_CONN = os.getenv("SERVICEBUS_CONN")
+QUEUE_NAME = os.getenv("SERVICEBUS_QUEUE_NAME")  # e.g. "data-ready-queue"
+
+CONTAINER_NAME = "incoming"  # Adjust if needed
 
 def main(event: func.EventGridEvent):
     try:
@@ -100,41 +159,50 @@ def main(event: func.EventGridEvent):
         data = event.get_json()
         blob_url = data['url']
 
-        # Extract blob info
+        # Extract blob info from URL
         blob_name = blob_url.split("/")[-1]  # e.g., xyzphar202502.csv
-        company = blob_name[:3]              # e.g., xyz
-        dataset_type = blob_name[3:7]        # e.g., phar
-        period = blob_name[7:13]             # e.g., 202502
+        company = blob_name[:3]               # e.g., xyz
+        dataset_type = blob_name[3:7]         # e.g., phar
+        period = blob_name[7:13]              # e.g., 202502
 
-        # Mapping short dataset types to folders and filenames
-        expected_files = {
-            "phar": f"pharmacy/{company}/{company}phar{period}.csv",
-            "medi": f"medical/{company}/{company}medi{period}.csv",
-            "demo": f"demo/{company}/{company}demo{period}.csv"
-        }
+        # Define expected files based on dataset type
+        pharmacy_file = f"dassscrub/pharmacy/{company}/{company}phar{period}.csv"
+        medical_file = f"dassscrub/medical/{company}/{company}medi{period}.csv"
+        demo_file = f"dassscrub/demo/{company}/{company}demo{period}.csv"
+        elig_file = f"dassscrub/elig/{company}/{company}elig{period}.csv"
 
-        dependencies = list(expected_files.values())
-
-        # Set up Blob client
-        blob_client = BlobServiceClient.from_connection_string(STORAGE_CONN)
-        container_client = blob_client.get_container_client(CONTAINER_NAME)
-
-        missing = []
-        for path in dependencies:
-            full_path = f"dassscrub/{path}"  # ✅ Fixed: don't include "incoming" again
-            try:
-                if not container_client.get_blob_client(full_path).exists():
-                    missing.append(full_path)
-            except Exception as check_err:
-                logging.warning(f"Error checking blob {full_path}: {check_err}")
-                missing.append(full_path)
-
-        if not missing:
-            logging.info(f"✅ All dependencies exist for {company} - {period}.")
-            # TODO: Trigger downstream logic (Service Bus, Airflow, etc.)
+        if dataset_type == "phar":
+            dependencies = [pharmacy_file, medical_file, demo_file]
+        elif dataset_type == "medi":
+            dependencies = [medical_file, elig_file, pharmacy_file]
+        elif dataset_type == "demo":
+            dependencies = [demo_file, pharmacy_file, medical_file]
+        elif dataset_type == "elig":
+            dependencies = [elig_file, pharmacy_file, medical_file]
         else:
-            logging.warning(f"⚠️ Missing dependencies for {company} - {period}: {missing}")
+            dependencies = [f"dassscrub/{dataset_type}/{company}/{blob_name}"]
+
+        # Check blob existence
+        blob_service_client = BlobServiceClient.from_connection_string(STORAGE_CONN)
+        container_client = blob_service_client.get_container_client(CONTAINER_NAME)
+
+        missing_files = []
+        for dep in dependencies:
+            blob_client = container_client.get_blob_client(dep)
+            if not blob_client.exists():
+                missing_files.append(dep)
+
+        if not missing_files:
+            # All files exist — send message to Service Bus queue
+            with ServiceBusClient.from_connection_string(SERVICEBUS_CONN) as sb_client:
+                with sb_client.get_queue_sender(queue_name=QUEUE_NAME) as sender:
+                    msg_body = f"{company}:{period}:ready"
+                    message = ServiceBusMessage(msg_body)
+                    sender.send_messages(message)
+            logging.info(f"All dependencies present for {company} {period}. Message sent to Service Bus queue '{QUEUE_NAME}'.")
+        else:
+            logging.warning(f"Missing dependencies for {company} {period}: {missing_files}")
 
     except Exception as e:
-        logging.error(f"❌ Error processing event: {e}")
-        raise  # Let Event Grid know the delivery failed
+        logging.error(f"Error processing Event Grid event: {e}")
+        raise  # Signal failure to Event Grid
