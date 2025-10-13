@@ -1,0 +1,27 @@
+version: "3.8"
+services:
+
+  airflow-webserver:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      AIRFLOW__CORE__EXECUTOR: SequentialExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW_UID: 50000
+      AIRFLOW_GID: 50000
+    command: webserver
+    volumes:
+      - ./dags:/opt/airflow/dags
+
+  airflow-scheduler:
+    build: .
+    depends_on:
+      - airflow-webserver
+    environment:
+      AIRFLOW__CORE__EXECUTOR: SequentialExecutor
+      AIRFLOW_UID: 50000
+      AIRFLOW_GID: 50000
+    command: scheduler
+    volumes:
+      - ./dags:/opt/airflow/dags

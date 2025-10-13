@@ -1,0 +1,11 @@
+resource_group_name          = "healthcare_project"
+storage_account_name         = "adlsgen2datastore"
+container_name               = "rawdata"
+servicebus_namespace         = "healthcare-sb-ns"
+servicebus_queue             = "trigger-airflow"
+function_name                = "process-file-func"
+function_storage_account     = "funcstoragedatapipeline"
+log_analytics_workspace_name = "law-central"
+location                     = "Sweden Central"
+storage_connection_string    = "DefaultEndpointsProtocol=https;AccountName=xyz;AccountKey=abc123==;EndpointSuffix=core.windows.net"
+

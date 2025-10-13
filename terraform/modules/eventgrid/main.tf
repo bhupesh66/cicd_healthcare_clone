@@ -1,0 +1,38 @@
+variable "function_id" {
+  type        = string
+  description = "Resource ID of the Azure Function to trigger."
+}
+
+resource "azurerm_eventgrid_event_subscription" "file_sub" {
+  name  = "file-upload-subscription"
+  scope = var.storage_account_id
+
+  event_delivery_schema = "EventGridSchema"
+  included_event_types  = ["Microsoft.Storage.BlobCreated"]
+
+  subject_filter {
+    subject_begins_with = "/blobServices/default/containers/${var.container_name}/blobs/dassscrub/"
+    subject_ends_with   = ".csv"
+  }
+
+  azure_function_endpoint {
+    function_id = var.function_id
+  }
+}
+
+
+
+
+
+
+# Diagnostics (remove unsupported StorageRead logs)
+resource "azurerm_monitor_diagnostic_setting" "eventgrid_diagnostics" {
+  name                       = "eventgrid-subscription-logs"
+  target_resource_id         = azurerm_eventgrid_event_subscription.file_sub.id
+  log_analytics_workspace_id = var.log_analytics_workspace
+
+  metric {
+  category = "AllMetrics"
+  enabled  = true
+}
+}

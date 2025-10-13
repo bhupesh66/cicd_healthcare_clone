@@ -1,36 +1,102 @@
-name: Terraform CI/CD
+name: Deploy Databricks Infrastructure
 
 on:
   push:
     branches:
-      - dev
-  pull_request:
-    branches:
-      - dev
+      - main
+  workflow_dispatch:   # allows manual trigger for destroy
 
 jobs:
   terraform:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        env: [dev]
 
     steps:
-    - name: Checkout repo
-      uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-    - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v2
-      with:
-        terraform_version: 1.5.6  # Or your preferred version
+      - name: List terraform folder contents
+        run: ls -la terraform/${{ matrix.env }}/databricks
 
-    - name: Terraform Init
-      working-directory: healthcare_final_dat_project/cicd/terraform/dev
-      run: terraform init
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.7
 
-    - name: Terraform Plan
-      working-directory: healthcare_final_dat_project/cicd/terraform/dev
-      run: terraform plan -out=tfplan
+      - name: Terraform Init
+        working-directory: terraform/${{ matrix.env }}/databricks
+        run: terraform init
 
-    # Optional: Only apply on push to main, not on PRs
-    - name: Terraform Apply
-      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-      working-directory: healthcare_final_dat_project/cicd/terraform/dev
-      run: terraform apply -auto-approve tfplan
+      - name: Terraform Plan
+        working-directory: terraform/${{ matrix.env }}/databricks
+        run: |
+          terraform plan -var-file=terraform.tfvars \
+          -var "azure_client_id=${{ secrets.AZURE_CLIENT_ID }}" \
+          -var "azure_client_secret=${{ secrets.AZURE_CLIENT_SECRET }}" \
+          -var "azure_tenant_id=${{ secrets.AZURE_TENANT_ID }}" \
+          -var "azure_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+
+      - name: Terraform Apply
+        if: ${{ github.ref == format('refs/heads/{0}', matrix.env) }}
+        working-directory: terraform/${{ matrix.env }}/databricks
+        run: |
+          terraform apply -auto-approve -var-file=terraform.tfvars \
+          -var "azure_client_id=${{ secrets.AZURE_CLIENT_ID }}" \
+          -var "azure_client_secret=${{ secrets.AZURE_CLIENT_SECRET }}" \
+          -var "azure_tenant_id=${{ secrets.AZURE_TENANT_ID }}" \
+          -var "azure_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+
+      - name: Install Databricks CLI & jq
+        run: |
+          pip install databricks-cli
+          sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Configure Databricks CLI
+        run: |
+          databricks configure --token <<EOF
+          ${{ secrets.DATABRICKS_HOST }}
+          ${{ secrets.DATABRICKS_TOKEN }}
+          EOF
+
+      - name: Create /Shared/project folder in Databricks Workspace
+        run: |
+         databricks workspace mkdirs /Shared/project   
+           
+      - name: Upload Notebooks to Workspace
+        run: |
+          echo "Uploading notebooks to /Shared/project..."
+          for nb in notebooks/*; do
+           base=$(basename "$nb")
+           databricks workspace import --language PYTHON --format SOURCE --overwrite "$nb" "/Shared/project/$base"
+           done
+
+  terraform_destroy:
+    if: github.event_name == 'workflow_dispatch'  # only runs when triggered manuallys
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        env: [dev]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.7
+
+      - name: Terraform Init
+        working-directory: terraform/${{ matrix.env }}/databricks
+        run: terraform init
+
+      - name: Terraform Destroy
+        working-directory: terraform/${{ matrix.env }}/databricks
+        run: |
+          terraform destroy -auto-approve -var-file=terraform.tfvars \
+          -var "azure_client_id=${{ secrets.AZURE_CLIENT_ID }}" \
+          -var "azure_client_secret=${{ secrets.AZURE_CLIENT_SECRET }}" \
+          -var "azure_tenant_id=${{ secrets.AZURE_TENANT_ID }}" \
+          -var "azure_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}"
