@@ -35,7 +35,7 @@ cicd_healthcare_clone/
   Dockerfile             - Container build instructions
   entrypoint.sh          - Startup script for container
   requirements.txt       - Python dependencies
-  github/workflows/     - CI/CD pipeline definitions
+  github/workflows/      - CI/CD pipeline definitions
 
 Prerequisites
 -------------
