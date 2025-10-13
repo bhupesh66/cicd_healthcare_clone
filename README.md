@@ -22,15 +22,20 @@ Project Structure
 Here’s a typical layout of the repo:
 
 cicd_healthcare_clone/
-├── dags/                  # Airflow DAG definitions
-├── function-code/         # Python scripts / business logic
-├── terraform/             # Terraform configuration files
-├── notebooks/             # Experimentation / analysis notebooks
-├── test.py                # Test cases / validation script
-├── Dockerfile             # Container build instructions
-├── entrypoint.sh          # Startup script for container
-├── requirements.txt       # Python dependencies
-└── .github/workflows/     # CI/CD pipeline definitions
+
+
+Project Structure
+-----------------
+cicd_healthcare_clone/
+  dags/                  - Airflow DAG definitions
+  function-code/         - Python scripts / business logic
+  terraform/             - Terraform configuration files
+  notebooks/             - Experimentation / analysis notebooks
+  test.py                - Test cases / validation script
+  Dockerfile             - Container build instructions
+  entrypoint.sh          - Startup script for container
+  requirements.txt       - Python dependencies
+  github/workflows/     - CI/CD pipeline definitions
 
 Prerequisites
 -------------
